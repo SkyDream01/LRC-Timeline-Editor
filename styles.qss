@@ -1,0 +1,148 @@
+/* styles.qss - Modern Dark Theme for LRC Timeline Editor */
+
+QWidget {
+    background-color: #2b2b2b;
+    color: #f0f0f0;
+    font-family: "Segoe UI", "Microsoft YaHei", "Roboto", "Helvetica", "Arial", sans-serif;
+    font-size: 10pt;
+}
+
+QMainWindow {
+    background-color: #2b2b2b;
+}
+
+QGroupBox {
+    background-color: #3c3c3c;
+    border: 1px solid #555;
+    border-radius: 8px;
+    margin-top: 1em;
+    padding-top: 1em;
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top center;
+    padding: 0 10px;
+    background-color: #3c3c3c;
+    color: #f0f0f0;
+}
+
+QTableWidget {
+    background-color: #3c3c3c;
+    border: 1px solid #555;
+    gridline-color: #555;
+    selection-background-color: #5a98d1;
+    selection-color: #ffffff;
+}
+
+QHeaderView::section {
+    background-color: #4a4a4a;
+    color: #f0f0f0;
+    padding: 4px;
+    border: 1px solid #555;
+    font-weight: bold;
+}
+
+QTableWidget::item {
+    padding: 5px;
+}
+
+QLineEdit, QComboBox {
+    background-color: #2b2b2b;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 5px;
+    min-height: 20px;
+}
+
+QLineEdit:focus, QComboBox:focus {
+    border: 1px solid #5a98d1;
+}
+
+QComboBox::drop-down {
+    border: none;
+}
+
+QComboBox::down-arrow {
+    image: url(down_arrow.png); /* 建议替换为图标 */
+}
+
+
+QPushButton {
+    background-color: #5a98d1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #6ba9e2;
+}
+
+QPushButton:pressed {
+    background-color: #4a8ac9;
+}
+
+QSlider::groove:horizontal {
+    border: 1px solid #555;
+    height: 4px;
+    background: #444;
+    margin: 2px 0;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background: #5a98d1;
+    border: 1px solid #5a98d1;
+    width: 16px;
+    height: 16px;
+    margin: -6px 0;
+    border-radius: 8px;
+}
+
+QDial {
+    background-color: #3c3c3c;
+}
+
+QMenuBar {
+    background-color: #3c3c3c;
+    color: #f0f0f0;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+    padding: 4px 8px;
+}
+
+QMenuBar::item:selected {
+    background-color: #5a98d1;
+}
+
+QMenu {
+    background-color: #3c3c3c;
+    border: 1px solid #555;
+}
+
+QMenu::item {
+    padding: 4px 20px;
+}
+
+QMenu::item:selected {
+    background-color: #5a98d1;
+}
+
+QStatusBar {
+    background-color: #3c3c3c;
+    color: #f0f0f0;
+}
+
+QMessageBox {
+    background-color: #3c3c3c;
+}
+
+QMessageBox QPushButton {
+    min-width: 80px;
+}
