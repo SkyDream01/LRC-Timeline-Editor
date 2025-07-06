@@ -2,15 +2,16 @@
 import os
 import sys
 import re
-from PyQt5.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QAbstractItemView, QHeaderView,
-    QMenuBar, QAction, QFileDialog, QLineEdit, QFormLayout, QSlider, QLabel,
-    QStatusBar, QMessageBox, QShortcut, QComboBox, QSizePolicy
+    QMenuBar, QFileDialog, QLineEdit, QFormLayout, QSlider, QLabel,
+    QStatusBar, QMessageBox, QComboBox, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QUrl, QTimer, QSize
-from PyQt5.QtMultimedia import QMediaPlayer
-from PyQt5.QtGui import QKeySequence, QColor, QIcon
+from PySide6.QtGui import QAction, QKeySequence, QColor, QIcon, QShortcut
+from PySide6.QtCore import Qt, QUrl, QTimer, QSize
+from PySide6.QtMultimedia import QMediaPlayer
+
 import qtawesome as qta
 
 from lrc import Lrc
@@ -20,7 +21,6 @@ from i18n import LANG
 def resource_path(relative_path):
     """ 获取资源的绝对路径，适用于开发环境和 PyInstaller 打包环境 """
     try:
-        # PyInstaller 创建一个临时文件夹，并将路径存储在 _MEIPASS 中
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
@@ -44,9 +44,8 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         self.setWindowTitle(LANG["app_title"])
-        # 设置窗口图标，使用 resource_path 函数确保路径正确
         self.setWindowIcon(QIcon(resource_path('assets/logo.png')))
-        self.setGeometry(150, 150, 1200, 1400)
+        self.setGeometry(150, 150, 1200, 800)
         self.create_menu()
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -83,7 +82,6 @@ class MainWindow(QMainWindow):
     def create_menu(self):
         menu_bar = self.menuBar()
         
-        # 文件菜单
         file_menu = menu_bar.addMenu(LANG["menu_file"])
         open_audio_action = QAction(LANG["menu_open_audio"], self)
         open_lyric_action = QAction(LANG["menu_open_lyric"], self)
@@ -99,14 +97,12 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(exit_action)
 
-        # 帮助菜单
         help_menu = menu_bar.addMenu(LANG["menu_help"])
         about_action = QAction(LANG["menu_about"], self)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
 
     def show_about_dialog(self):
-        """显示关于对话框"""
         QMessageBox.about(self, LANG["about_dialog_title"], LANG["about_dialog_text"])
 
     def create_meta_group(self):
@@ -135,7 +131,7 @@ class MainWindow(QMainWindow):
         for btn in [self.play_pause_button, self.stop_button, self.rewind_button, self.forward_button]:
             icon_size = int(btn.fontMetrics().height() * 1.2)
             btn.setIconSize(QSize(icon_size, icon_size))
-            btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+            btn.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
         controls_layout.addWidget(self.play_pause_button)
         controls_layout.addWidget(self.stop_button)
@@ -144,15 +140,15 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.forward_button)
 
         timeline_layout = QHBoxLayout()
-        self.timeline_slider = QSlider(Qt.Horizontal)
+        self.timeline_slider = QSlider(Qt.Orientation.Horizontal)
         self.time_label = QLabel("00:00.00 / 00:00.00")
-        self.time_label.setMinimumWidth(self.fontMetrics().width("00:00.00 / 00:00.00") + 10)
+        self.time_label.setMinimumWidth(self.fontMetrics().horizontalAdvance("00:00.00 / 00:00.00") + 10)
         timeline_layout.addWidget(self.timeline_slider)
         timeline_layout.addWidget(self.time_label)
 
         extra_controls_layout = QHBoxLayout()
         
-        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
         self.volume_slider.setFixedWidth(120) 
@@ -189,11 +185,19 @@ class MainWindow(QMainWindow):
             LANG["lyrics_table_header_original"],
             LANG["lyrics_table_header_translated"]
         ])
-        self.lyrics_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.lyrics_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         header = self.lyrics_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        
+        # --- 修改点 1: 添加样式表以定义选中行的颜色 ---
+        self.lyrics_table.setStyleSheet("""
+            QTableWidget::item:selected {
+                background-color: #5a98d1;
+                color: white;
+            }
+        """)
 
     def create_edit_controls(self):
         group = QGroupBox(LANG["edit_controls_group"])
@@ -220,7 +224,7 @@ class MainWindow(QMainWindow):
     def connect_signals(self):
         self.ui_update_timer.timeout.connect(self.update_ui_on_timer)
         self.player.durationChanged.connect(self.update_duration)
-        self.player.stateChanged.connect(self.handle_player_state_change)
+        self.player.playbackStateChanged.connect(self.handle_player_state_change)
         
         self.play_pause_button.clicked.connect(self.toggle_play_pause)
         self.stop_button.clicked.connect(self.player.stop)
@@ -241,10 +245,10 @@ class MainWindow(QMainWindow):
         self.title_edit.textChanged.connect(lambda t: self.lrc.meta.update({'ti': t}))
         self.artist_edit.textChanged.connect(lambda t: self.lrc.meta.update({'ar': t}))
         self.album_edit.textChanged.connect(lambda t: self.lrc.meta.update({'al': t}))
-        QShortcut(QKeySequence("F8"), self, self.mark_timestamp)
-        QShortcut(QKeySequence("Ctrl+T"), self, self.mark_timestamp)
-        QShortcut(QKeySequence(Qt.Key_Space), self, self.toggle_play_pause)
 
+        QShortcut(QKeySequence("F8"), self).activated.connect(self.mark_timestamp)
+        QShortcut(QKeySequence("Ctrl+T"), self).activated.connect(self.mark_timestamp)
+        QShortcut(QKeySequence("Space"), self).activated.connect(self.toggle_play_pause)
 
     def update_ui_on_timer(self):
         if self.player.is_playing() and not self.timeline_slider.isSliderDown():
@@ -254,7 +258,7 @@ class MainWindow(QMainWindow):
             self.highlight_current_lyric(position / 1000.0)
 
     def handle_player_state_change(self, state):
-        if state == QMediaPlayer.PlayingState:
+        if state == QMediaPlayer.PlaybackState.PlayingState:
             self.ui_update_timer.start()
             self.play_pause_button.setIcon(qta.icon('fa5s.pause-circle', color='white'))
             self.play_pause_button.setText(f" {LANG['pause_button']}")
@@ -262,17 +266,16 @@ class MainWindow(QMainWindow):
             self.ui_update_timer.stop()
             self.play_pause_button.setIcon(qta.icon('fa5s.play-circle', color='white'))
             self.play_pause_button.setText(f" {LANG['play_button']}")
-            if state == QMediaPlayer.StoppedState:
+            if state == QMediaPlayer.PlaybackState.StoppedState:
                 self.timeline_slider.setValue(0)
                 self.update_time_label(0, self.player.get_duration())
-                self.highlight_current_lyric(-1)
+                self.highlight_current_lyric(-1) # 清除高亮
 
     def open_audio_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, LANG["open_audio_title"], "", LANG["audio_files_filter"])
         if file_path:
             self.current_audio_file = file_path
             self.player.load(file_path)
-            self.handle_player_state_change(self.player._player.state())
             self.status_bar.showMessage(LANG["status_audio_loaded"].format(file=os.path.basename(file_path)))
 
     def open_lyric_file(self):
@@ -298,11 +301,11 @@ class MainWindow(QMainWindow):
         if file_path:
             choice = QMessageBox.question(self, "选择保存格式",
                                           "您想如何保存双语歌词？\n- 'Yes' 保存为分行格式\n- 'No' 保存为单行'/'分隔格式",
-                                          QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-                                          QMessageBox.Yes)
-            if choice == QMessageBox.Cancel:
+                                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+                                          QMessageBox.StandardButton.Yes)
+            if choice == QMessageBox.StandardButton.Cancel:
                 return
-            save_as_separated = (choice == QMessageBox.Yes)
+            save_as_separated = (choice == QMessageBox.StandardButton.Yes)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(self.lrc.to_lrc_string(save_as_bilingual_separated=save_as_separated))
             self.status_bar.showMessage(LANG["status_lyric_saved"].format(file=file_path))
@@ -326,7 +329,7 @@ class MainWindow(QMainWindow):
             else:
                 time_str = ""
             time_item = QTableWidgetItem(time_str)
-            time_item.setFlags(time_item.flags() | Qt.ItemIsEditable)
+            time_item.setFlags(time_item.flags() | Qt.ItemFlag.ItemIsEditable)
             self.lyrics_table.setItem(i, 0, time_item)
             self.lyrics_table.setItem(i, 1, QTableWidgetItem(original))
             self.lyrics_table.setItem(i, 2, QTableWidgetItem(translated))
@@ -357,7 +360,7 @@ class MainWindow(QMainWindow):
              self.update_lyrics_table()
 
     def on_volume_changed(self, value):
-        self.player.set_volume(value)
+        self.player.set_volume(value / 100.0)
         self.volume_label.setText(f"{value}%")
 
     def on_speed_changed(self, text):
@@ -367,8 +370,7 @@ class MainWindow(QMainWindow):
     def update_duration(self, duration):
         self.timeline_slider.setRange(0, duration)
         self.update_time_label(self.player.get_pos(), duration)
-        self.handle_player_state_change(self.player._player.state())
-
+        self.handle_player_state_change(self.player._player.playbackState())
 
     def format_time(self, ms):
         if ms < 0: ms = 0
@@ -383,48 +385,42 @@ class MainWindow(QMainWindow):
         dur_str = self.format_time(dur)
         self.time_label.setText(f"{pos_str} / {dur_str}")
 
+    # --- 修改点 2: 替换整个函数 ---
     def highlight_current_lyric(self, current_sec):
-        highlight_color = QColor('#5a98d1')
-        transparent_color = QColor('transparent')
-
-        if self.last_highlighted_row != -1 and self.last_highlighted_row < self.lyrics_table.rowCount():
-            for j in range(self.lyrics_table.columnCount()):
-                item = self.lyrics_table.item(self.last_highlighted_row, j)
-                if item: item.setBackground(transparent_color)
-
         current_line_idx = -1
+        # 在有时间戳的歌词中查找当前行
         sorted_lyrics = [lyric for lyric in self.lrc.lyrics if lyric['ts'] is not None]
         for i, lyric_line in enumerate(sorted_lyrics):
             if current_sec >= lyric_line['ts']:
                 current_line_idx = i
             else:
                 break
-
+        
+        # 如果找到了当前播放的歌词行
         if current_line_idx != -1:
             try:
-                original_index = -1
+                # 找到它在原始lyrics列表中的索引
                 target_lyric = sorted_lyrics[current_line_idx]
+                original_index = -1
                 for idx, lyric in enumerate(self.lrc.lyrics):
                     if lyric is target_lyric:
                         original_index = idx
                         break
                 
+                # 如果索引有效，则滚动并选中该行
                 if original_index != -1:
+                    # 避免重复选中，仅在需要时操作
                     if self.lyrics_table.selectionModel().currentIndex().row() != original_index:
-                        self.lyrics_table.scrollToItem(self.lyrics_table.item(original_index, 0), QAbstractItemView.PositionAtCenter)
+                        self.lyrics_table.scrollToItem(self.lyrics_table.item(original_index, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
                         self.lyrics_table.selectRow(original_index)
-                    
-                    for j in range(self.lyrics_table.columnCount()):
-                        item = self.lyrics_table.item(original_index, j)
-                        if item: item.setBackground(highlight_color)
-                    self.last_highlighted_row = original_index
-                else:
-                    self.last_highlighted_row = -1
 
             except (ValueError, IndexError):
-                self.last_highlighted_row = -1
+                # 如果出现意外错误，清除选择
+                self.lyrics_table.clearSelection()
         else:
-             self.last_highlighted_row = -1
+            # 如果没有正在播放的行 (例如歌曲停止或未开始)，清除选择
+            if current_sec < 0:
+                self.lyrics_table.clearSelection()
 
     def get_selected_rows(self):
         return sorted(list(set(index.row() for index in self.lyrics_table.selectedIndexes())))
@@ -447,8 +443,8 @@ class MainWindow(QMainWindow):
             return
         
         reply = QMessageBox.question(self, "确认删除", f"您确定要删除选中的 {len(rows)} 行吗？",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.No:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.lyrics_table.blockSignals(True)
@@ -531,7 +527,6 @@ class MainWindow(QMainWindow):
             next_row = rows[0] + 1
             if next_row < self.lyrics_table.rowCount():
                 self.lyrics_table.selectRow(next_row)
-
 
     def play_from_selection(self, item):
         row = item.row()

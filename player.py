@@ -1,44 +1,28 @@
 # player.py
-from PyQt5.QtCore import QObject, QUrl, pyqtSignal
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from PySide6.QtCore import QObject, QUrl, Signal
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 
 class Player(QObject):
     """封装 QMediaPlayer 提供播放控制"""
-    # 自定义信号，供应用程序的其他部分连接
-    positionChanged = pyqtSignal(int)
-    durationChanged = pyqtSignal(int)
-    stateChanged = pyqtSignal(QMediaPlayer.State)
+    positionChanged = Signal(int)
+    durationChanged = Signal(int)
+    playbackStateChanged = Signal(QMediaPlayer.PlaybackState)
 
     def __init__(self):
         super().__init__()
         self._player = QMediaPlayer()
+        self._audio_output = QAudioOutput()
+        self._player.setAudioOutput(self._audio_output)
 
-        # 将 QMediaPlayer 的内置信号连接到内部的代理槽函数
-        self._player.positionChanged.connect(self._on_position_changed)
-        self._player.durationChanged.connect(self._on_duration_changed)
-        self._player.stateChanged.connect(self._on_state_changed)
-
-    # --- 内部代理槽函数 (Private Slots) ---
-    # 这些方法接收来自 QMediaPlayer 的原始信号
-
-    def _on_position_changed(self, position: int):
-        # 然后，它们再发射我们自定义的信号，供程序的其他部分使用
-        self.positionChanged.emit(position)
-
-    def _on_duration_changed(self, duration: int):
-        self.durationChanged.emit(duration)
-        
-    def _on_state_changed(self, state: QMediaPlayer.State):
-        self.stateChanged.emit(state)
-
-    # --- 公共控制方法 ---
-    # 这部分代码保持不变
+        # 修正点: 使用 lambda 明确地重新发射信号，以避免C++签名冲突
+        self._player.positionChanged.connect(lambda pos: self.positionChanged.emit(pos))
+        self._player.durationChanged.connect(lambda dur: self.durationChanged.emit(dur))
+        self._player.playbackStateChanged.connect(lambda state: self.playbackStateChanged.emit(state))
 
     def load(self, file_path: str):
         """加载音频文件"""
         url = QUrl.fromLocalFile(file_path)
-        content = QMediaContent(url)
-        self._player.setMedia(content)
+        self._player.setSource(url)
 
     def play(self):
         self._player.play()
@@ -63,11 +47,11 @@ class Player(QObject):
     
     def is_playing(self) -> bool:
         """判断是否正在播放"""
-        return self._player.state() == QMediaPlayer.PlayingState
+        return self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
 
-    def set_volume(self, volume: int):
-        """设置音量 (0-100)"""
-        self._player.setVolume(volume)
+    def set_volume(self, volume: float):
+        """设置音量 (0.0 到 1.0)"""
+        self._audio_output.setVolume(volume)
 
     def set_playback_rate(self, rate: float):
         """设置播放速度"""

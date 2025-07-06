@@ -1,6 +1,6 @@
 # main.py
 import sys
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 # 从 main_window.py 导入 resource_path 函数
 from main_window import MainWindow, resource_path 
 
@@ -18,4 +18,4 @@ if __name__ == '__main__':
 
     main_win = MainWindow()
     main_win.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
