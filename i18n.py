@@ -15,7 +15,7 @@ LANG = {
     "about_dialog_text": (
         "<h3>LRC Timeline Editor</h3>"
         "<p>一个用于创建和校准双语LRC歌词的工具。</p>"
-        "<p>版本: 1.1.0</p>"
+        "<p>版本: 1.2.0 </p>"
         "<p>项目主页: <a href='https://github.com/SkyDream01/LRC-Timeline-Editor'>https://github.com/SkyDream01/LRC-Timeline-Editor</a></p>"
         "<p>这是一个开源项目，欢迎贡献！</p>"
     ),
@@ -47,7 +47,8 @@ LANG = {
     "split_row_button": "拆分选中行",
 
     "timeline_controls_group": "打轴操作",
-    "mark_time_button": "标记时间 (F8)",
+    "mark_time_button": "标记并跳转 (F8)",
+    "mark_time_stay_button": "标记并停留 (F7)",
     
     "status_ready": "就绪",
     "status_audio_loaded": "音频已加载: {file}",

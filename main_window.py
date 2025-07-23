@@ -41,11 +41,12 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.connect_signals()
         self.update_lyrics_table()
+        self.update_edit_buttons_state() # 初始化按钮状态
 
     def init_ui(self):
         self.setWindowTitle(LANG["app_title"])
         self.setWindowIcon(QIcon(resource_path('assets/logo.png')))
-        self.setGeometry(150, 150, 1200, 800)
+        self.setGeometry(150, 150, 700, 800)
         self.create_menu()
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -191,7 +192,6 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         
-        # --- 修改点 1: 添加样式表以定义选中行的颜色 ---
         self.lyrics_table.setStyleSheet("""
             QTableWidget::item:selected {
                 background-color: #5a98d1;
@@ -217,7 +217,9 @@ class MainWindow(QMainWindow):
         group = QGroupBox(LANG["timeline_controls_group"])
         layout = QHBoxLayout()
         self.mark_time_button = QPushButton(LANG["mark_time_button"])
+        self.mark_time_stay_button = QPushButton(LANG["mark_time_stay_button"]) # 新增按钮
         layout.addWidget(self.mark_time_button)
+        layout.addWidget(self.mark_time_stay_button) # 添加到布局
         group.setLayout(layout)
         return group
 
@@ -240,13 +242,18 @@ class MainWindow(QMainWindow):
         self.merge_rows_button.clicked.connect(self.merge_selected_rows)
         self.split_row_button.clicked.connect(self.split_selected_row)
         self.mark_time_button.clicked.connect(self.mark_timestamp)
+        self.mark_time_stay_button.clicked.connect(self.mark_timestamp_stay) # 连接新按钮信号
+        
         self.lyrics_table.itemDoubleClicked.connect(self.play_from_selection)
         self.lyrics_table.itemChanged.connect(self.sync_table_to_lrc)
+        self.lyrics_table.itemSelectionChanged.connect(self.update_edit_buttons_state) # 连接选择变化信号
+        
         self.title_edit.textChanged.connect(lambda t: self.lrc.meta.update({'ti': t}))
         self.artist_edit.textChanged.connect(lambda t: self.lrc.meta.update({'ar': t}))
         self.album_edit.textChanged.connect(lambda t: self.lrc.meta.update({'al': t}))
 
         QShortcut(QKeySequence("F8"), self).activated.connect(self.mark_timestamp)
+        QShortcut(QKeySequence("F7"), self).activated.connect(self.mark_timestamp_stay) # 新增快捷键
         QShortcut(QKeySequence("Ctrl+T"), self).activated.connect(self.mark_timestamp)
         QShortcut(QKeySequence("Space"), self).activated.connect(self.toggle_play_pause)
 
@@ -335,8 +342,36 @@ class MainWindow(QMainWindow):
             self.lyrics_table.setItem(i, 2, QTableWidgetItem(translated))
         self.lyrics_table.resizeRowsToContents()
         self.lyrics_table.blockSignals(False)
+        self.update_edit_buttons_state()
 
     def sync_table_to_lrc(self, item=None):
+        # 优化：如果只是单个item变化，只更新那一行
+        if item:
+            row = item.row()
+            if 0 <= row < len(self.lrc.lyrics):
+                time_str_item = self.lyrics_table.item(row, 0)
+                original_item = self.lyrics_table.item(row, 1)
+                translated_item = self.lyrics_table.item(row, 2)
+
+                time_str = time_str_item.text() if time_str_item else ""
+                original = original_item.text() if original_item else ""
+                translated = translated_item.text() if translated_item else ""
+                
+                ts = None
+                match = re.match(r'(\d+):(\d{2,2})\.(\d{2,2})', time_str)
+                if match:
+                    m, s, cs = map(int, match.groups())
+                    ts = m * 60 + s + cs / 100.0
+                
+                self.lrc.lyrics[row] = {'ts': ts, 'original': original, 'translated': translated}
+
+                # 如果修改的是时间戳，则需要重新排序
+                if item.column() == 0:
+                     self.lrc.sort_lyrics()
+                     self.update_lyrics_table()
+                return
+
+        # 完整同步：当item为None时（例如，增删行后），执行完整同步
         self.lrc.lyrics.clear()
         for i in range(self.lyrics_table.rowCount()):
             time_str_item = self.lyrics_table.item(i, 0)
@@ -354,11 +389,7 @@ class MainWindow(QMainWindow):
                 ts = m * 60 + s + cs / 100.0
             
             self.lrc.lyrics.append({'ts': ts, 'original': original, 'translated': translated})
-
-        if item and item.column() == 0:
-             self.lrc.sort_lyrics()
-             self.update_lyrics_table()
-
+    
     def on_volume_changed(self, value):
         self.player.set_volume(value / 100.0)
         self.volume_label.setText(f"{value}%")
@@ -385,45 +416,38 @@ class MainWindow(QMainWindow):
         dur_str = self.format_time(dur)
         self.time_label.setText(f"{pos_str} / {dur_str}")
 
-    # --- 修改点 2: 替换整个函数 ---
     def highlight_current_lyric(self, current_sec):
         current_line_idx = -1
-        # 在有时间戳的歌词中查找当前行
-        sorted_lyrics = [lyric for lyric in self.lrc.lyrics if lyric['ts'] is not None]
-        for i, lyric_line in enumerate(sorted_lyrics):
+        timed_lyrics_indices = [(idx, lyric) for idx, lyric in enumerate(self.lrc.lyrics) if lyric['ts'] is not None]
+        
+        # 寻找正确的行
+        target_original_index = -1
+        for original_idx, lyric_line in sorted(timed_lyrics_indices, key=lambda x: x[1]['ts']):
             if current_sec >= lyric_line['ts']:
-                current_line_idx = i
+                target_original_index = original_idx
             else:
                 break
         
-        # 如果找到了当前播放的歌词行
-        if current_line_idx != -1:
-            try:
-                # 找到它在原始lyrics列表中的索引
-                target_lyric = sorted_lyrics[current_line_idx]
-                original_index = -1
-                for idx, lyric in enumerate(self.lrc.lyrics):
-                    if lyric is target_lyric:
-                        original_index = idx
-                        break
-                
-                # 如果索引有效，则滚动并选中该行
-                if original_index != -1:
-                    # 避免重复选中，仅在需要时操作
-                    if self.lyrics_table.selectionModel().currentIndex().row() != original_index:
-                        self.lyrics_table.scrollToItem(self.lyrics_table.item(original_index, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
-                        self.lyrics_table.selectRow(original_index)
-
-            except (ValueError, IndexError):
-                # 如果出现意外错误，清除选择
-                self.lyrics_table.clearSelection()
-        else:
-            # 如果没有正在播放的行 (例如歌曲停止或未开始)，清除选择
-            if current_sec < 0:
-                self.lyrics_table.clearSelection()
+        if target_original_index != -1:
+            if self.lyrics_table.selectionModel().currentIndex().row() != target_original_index:
+                self.lyrics_table.scrollToItem(self.lyrics_table.item(target_original_index, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
+                self.lyrics_table.selectRow(target_original_index)
+        elif current_sec < 0:
+            self.lyrics_table.clearSelection()
 
     def get_selected_rows(self):
         return sorted(list(set(index.row() for index in self.lyrics_table.selectedIndexes())))
+
+    def update_edit_buttons_state(self):
+        """根据选择的行数更新编辑按钮的可用状态"""
+        selected_count = len(self.get_selected_rows())
+        
+        self.remove_row_button.setEnabled(selected_count > 0)
+        self.mark_time_button.setEnabled(selected_count > 0)
+        self.mark_time_stay_button.setEnabled(selected_count > 0)
+        
+        self.split_row_button.setEnabled(selected_count == 1)
+        self.merge_rows_button.setEnabled(selected_count > 1)
 
     def add_row(self):
         selected_rows = self.get_selected_rows()
@@ -434,14 +458,13 @@ class MainWindow(QMainWindow):
         self.lyrics_table.setItem(insert_pos, 1, QTableWidgetItem(""))
         self.lyrics_table.setItem(insert_pos, 2, QTableWidgetItem(""))
         self.lyrics_table.blockSignals(False)
-        self.sync_table_to_lrc()
+        self.sync_table_to_lrc() # 完整同步
+        self.update_edit_buttons_state()
 
     def remove_selected_rows(self):
         rows = self.get_selected_rows()
-        if not rows:
-            QMessageBox.warning(self, LANG["error_title"], LANG["error_no_selection"])
-            return
-        
+        if not rows: return
+
         reply = QMessageBox.question(self, "确认删除", f"您确定要删除选中的 {len(rows)} 行吗？",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.No:
@@ -451,13 +474,12 @@ class MainWindow(QMainWindow):
         for row in reversed(rows):
             self.lyrics_table.removeRow(row)
         self.lyrics_table.blockSignals(False)
-        self.sync_table_to_lrc()
+        self.sync_table_to_lrc() # 完整同步
+        self.update_edit_buttons_state()
 
     def merge_selected_rows(self):
         rows = self.get_selected_rows()
-        if len(rows) < 2:
-            QMessageBox.warning(self, LANG["error_title"], LANG["error_need_two_rows"])
-            return
+        if len(rows) < 2: return
         
         self.lyrics_table.blockSignals(True)
         base_row = rows[0]
@@ -481,13 +503,12 @@ class MainWindow(QMainWindow):
         for row in reversed(rows[1:]):
             self.lyrics_table.removeRow(row)
         self.lyrics_table.blockSignals(False)
-        self.sync_table_to_lrc()
+        self.sync_table_to_lrc() # 完整同步
+        self.update_edit_buttons_state()
 
     def split_selected_row(self):
         rows = self.get_selected_rows()
-        if len(rows) != 1:
-            QMessageBox.warning(self, LANG["error_title"], LANG["error_need_one_row"])
-            return
+        if len(rows) != 1: return
         
         row = rows[0]
         original_item = self.lyrics_table.item(row, 1)
@@ -505,13 +526,15 @@ class MainWindow(QMainWindow):
                 self.lyrics_table.setItem(new_row_idx, 1, QTableWidgetItem(part))
                 self.lyrics_table.setItem(new_row_idx, 2, QTableWidgetItem(""))
             self.lyrics_table.blockSignals(False)
-            self.sync_table_to_lrc()
+            self.sync_table_to_lrc() # 完整同步
+            self.update_edit_buttons_state()
 
-    def mark_timestamp(self):
+    def mark_timestamp_base(self):
+        """基础的标记时间逻辑，返回标记的行和当前位置"""
         rows = self.get_selected_rows()
         if not rows:
             QMessageBox.warning(self, LANG["error_title"], LANG["error_no_selection"])
-            return
+            return None, None
         
         current_pos_ms = self.player.get_pos()
         
@@ -521,12 +544,21 @@ class MainWindow(QMainWindow):
             self.lyrics_table.item(row, 0).setText(time_str)
         self.lyrics_table.blockSignals(False)
         
+        # 使用优化的同步逻辑
         self.sync_table_to_lrc(self.lyrics_table.item(rows[0], 0))
-        
-        if len(rows) == 1:
+        return rows, current_pos_ms
+
+    def mark_timestamp(self):
+        """标记时间并选择下一行 (F8)"""
+        rows, _ = self.mark_timestamp_base()
+        if rows and len(rows) == 1:
             next_row = rows[0] + 1
             if next_row < self.lyrics_table.rowCount():
                 self.lyrics_table.selectRow(next_row)
+
+    def mark_timestamp_stay(self):
+        """标记时间并停留在当前行 (F7)"""
+        self.mark_timestamp_base()
 
     def play_from_selection(self, item):
         row = item.row()
