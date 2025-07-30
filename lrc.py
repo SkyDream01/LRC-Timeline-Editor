@@ -44,7 +44,8 @@ class Lrc:
                     time_map[ts].append(lyric_text)
             elif lyric_text:
                 unstimed_lyrics.append(lyric_text)
-
+        
+        # 按时间戳对解析出的歌词行进行排序
         sorted_timestamps = sorted(time_map.keys())
         for ts in sorted_timestamps:
             lyrics_at_ts = time_map[ts]
@@ -62,11 +63,16 @@ class Lrc:
 
             self.lyrics.append({'ts': ts, 'original': original, 'translated': translated})
         
+        # 无时间戳的歌词放在最后
         for text in unstimed_lyrics:
             parts = re.split(r'\s*[/|]\s*', text, maxsplit=1)
             original = parts[0]
             translated = parts[1] if len(parts) > 1 else ""
             self.lyrics.append({'ts': None, 'original': original, 'translated': translated})
+        
+        # 初次加载后不再自动排序
+        # self.sort_lyrics()
+
 
     def to_lrc_string(self, save_as_bilingual_separated=True) -> str:
         """生成LRC格式的字符串，精度为0.01s"""
@@ -75,9 +81,10 @@ class Lrc:
             if value:
                 lrc_parts.append(f"[{key}:{value}]")
         
-        sorted_lyrics = sorted(self.lyrics, key=lambda x: x['ts'] if x['ts'] is not None else float('inf'))
+        # 保存时不再强制排序，按当前表格顺序生成
+        # sorted_lyrics = sorted(self.lyrics, key=lambda x: x['ts'] if x['ts'] is not None else float('inf'))
 
-        for line_data in sorted_lyrics:
+        for line_data in self.lyrics: # 直接使用当前顺序
             ts = line_data['ts']
             original = line_data.get('original', '')
             translated = line_data.get('translated', '')
@@ -85,7 +92,6 @@ class Lrc:
             if ts is not None:
                 minutes = int(ts / 60)
                 seconds = int(ts % 60)
-                # **修改点**: 直接计算厘秒
                 centiseconds = int((ts - minutes * 60 - seconds) * 100)
                 time_str = f"[{minutes:02d}:{seconds:02d}.{centiseconds:02d}]"
             else:
@@ -106,5 +112,6 @@ class Lrc:
         return "\n".join(lrc_parts)
 
     def sort_lyrics(self):
-        """根据时间戳排序歌词列表"""
-        self.lyrics.sort(key=lambda x: x['ts'] if x['ts'] is not None else float('inf'))
+        """根据时间戳排序歌词列表 (此功能已根据用户要求停用)"""
+        # self.lyrics.sort(key=lambda x: x['ts'] if x['ts'] is not None else float('inf'))
+        pass
