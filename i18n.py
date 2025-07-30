@@ -19,7 +19,7 @@ LANG = {
     "toolbar_file": "文件操作",
     "toolbar_edit": "编辑操作",
     "toolbar_playback": "播放控制",
-    "toolbar_timeline": "时间轴操作",
+    # "toolbar_timeline": "时间轴操作", # 已移除
 
     "setting_default_save_format": "默认双语保存格式",
     "setting_save_separated": "分行保存 (推荐)",
@@ -29,7 +29,7 @@ LANG = {
     "about_dialog_text": (
         "<h3>LRC Timeline Editor</h3>"
         "<p>一个用于创建和校准双语LRC歌词的工具。</p>"
-        "<p>版本: 1.4.0 </p>" # 版本号提升
+        "<p>版本: 1.4.0 </p>"
         "<p>项目主页: <a href='https://github.com/SkyDream01/LRC-Timeline-Editor'>https://github.com/SkyDream01/LRC-Timeline-Editor</a></p>"
         "<p>这是一个开源项目，欢迎贡献！</p>"
     ),

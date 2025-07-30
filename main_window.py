@@ -97,11 +97,16 @@ class MainWindow(QMainWindow):
         self.rewind_action = QAction(qta.icon('fa5s.backward'), LANG['rewind_button'], self)
         self.forward_action = QAction(qta.icon('fa5s.forward'), LANG['forward_button'], self)
 
-        # 打轴
-        self.mark_time_action = QAction(qta.icon('fa5s.map-marker-alt'), LANG['mark_time_button'], self)
+        # 打轴 Actions (no longer in toolbar, but logic remains)
+        self.mark_time_action = QAction(LANG['mark_time_button'], self)
         self.mark_time_action.setShortcut(QKeySequence("F8"))
-        self.mark_time_stay_action = QAction(qta.icon('fa5s.thumbtack'), LANG['mark_time_stay_button'], self)
+        self.mark_time_stay_action = QAction(LANG['mark_time_stay_button'], self)
         self.mark_time_stay_action.setShortcut(QKeySequence("F7"))
+
+        # 注册快捷键
+        self.addAction(self.mark_time_action)
+        self.addAction(self.mark_time_stay_action)
+
 
     def init_ui(self):
         """初始化整体UI布局"""
@@ -200,12 +205,6 @@ class MainWindow(QMainWindow):
         self.time_label.setMinimumWidth(self.fontMetrics().horizontalAdvance("00:00.00 / 00:00.00") + 10)
         playback_toolbar.addWidget(self.time_label)
 
-        # 时间轴操作工具栏
-        timeline_toolbar = QToolBar(LANG["toolbar_timeline"])
-        self.addToolBar(timeline_toolbar)
-        timeline_toolbar.addAction(self.mark_time_action)
-        timeline_toolbar.addAction(self.mark_time_stay_action)
-
     def create_left_panel(self):
         """创建左侧控制面板"""
         panel = QWidget()
@@ -214,6 +213,7 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.create_meta_group())
         layout.addWidget(self.create_secondary_player_controls())
+        layout.addWidget(self.create_timeline_controls()) # New group
         layout.addWidget(self.create_edit_controls())
         layout.addStretch()
 
@@ -258,6 +258,22 @@ class MainWindow(QMainWindow):
         
         return group
 
+    def create_timeline_controls(self):
+        """创建打轴操作分组"""
+        group = QGroupBox(LANG["timeline_controls_group"])
+        layout = QVBoxLayout(group)
+        
+        self.mark_time_button = QPushButton(LANG["mark_time_button"])
+        self.mark_time_stay_button = QPushButton(LANG["mark_time_stay_button"])
+        
+        self.mark_time_button.setIcon(qta.icon('fa5s.map-marker-alt'))
+        self.mark_time_stay_button.setIcon(qta.icon('fa5s.thumbtack'))
+        
+        layout.addWidget(self.mark_time_button)
+        layout.addWidget(self.mark_time_stay_button)
+        
+        return group
+
     def create_edit_controls(self):
         """创建编辑操作分组"""
         group = QGroupBox(LANG["edit_controls_group"])
@@ -286,6 +302,7 @@ class MainWindow(QMainWindow):
         self.rewind_action.triggered.connect(lambda: self.player.set_pos(self.player.get_pos() - 1000))
         self.forward_action.triggered.connect(lambda: self.player.set_pos(self.player.get_pos() + 1000))
         
+        # Connect actions to handlers (shortcuts will trigger these)
         self.mark_time_action.triggered.connect(self.mark_timestamp)
         self.mark_time_stay_action.triggered.connect(self.mark_timestamp_stay)
 
@@ -295,6 +312,10 @@ class MainWindow(QMainWindow):
         self.merge_rows_button.clicked.connect(self.merge_selected_rows)
         self.split_row_button.clicked.connect(self.split_selected_row)
         
+        # Connect new buttons
+        self.mark_time_button.clicked.connect(self.mark_timestamp)
+        self.mark_time_stay_button.clicked.connect(self.mark_timestamp_stay)
+
         self.timeline_slider.sliderMoved.connect(self.player.set_pos)
         self.volume_slider.valueChanged.connect(self.on_volume_changed)
         self.speed_combo.currentTextChanged.connect(self.on_speed_changed)
@@ -458,7 +479,6 @@ class MainWindow(QMainWindow):
     def mark_timestamp_stay(self):
         self.mark_timestamp_base()
     
-    # --- 其余函数保持不变 ---
     def show_about_dialog(self): 
         QMessageBox.about(self, LANG["about_dialog_title"], LANG["about_dialog_text"])
 
@@ -473,7 +493,6 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        # 移动样式到QSS文件或在主入口设置，这里为了兼容性暂时保留
         self.lyrics_table.setStyleSheet("QTableWidget::item:selected { background-color: #5a98d1; color: white; }")
 
     def on_volume_changed(self, value):
@@ -661,6 +680,9 @@ class MainWindow(QMainWindow):
         self.mark_time_stay_action.setEnabled(count > 0)
         self.split_row_button.setEnabled(count == 1)
         self.merge_rows_button.setEnabled(count > 1)
+        # Update new buttons
+        self.mark_time_button.setEnabled(count > 0)
+        self.mark_time_stay_button.setEnabled(count > 0)
 
     def play_from_selection(self, item):
         row = item.row()
