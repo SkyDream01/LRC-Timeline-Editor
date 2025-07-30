@@ -1,10 +1,10 @@
 # LRC Timeline Editor
 
-\<div align="center"\>
+<div align="center">
 
 [English](./README.md) · [中文](./README-zh.md)
 
-\</div\>
+</div>
 
 **LRC Timeline Editor** is a desktop application crafted for music enthusiasts and lyric translators. It offers an efficient and intuitive tool for creating and calibrating bilingual LRC lyric files. By seamlessly integrating audio playback with timestamp editing, you can precisely tag every line of lyric, making professional-grade lyric creation easier than ever.
 
