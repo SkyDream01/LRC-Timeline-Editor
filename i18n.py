@@ -19,7 +19,6 @@ LANG = {
     "toolbar_file": "文件操作",
     "toolbar_edit": "编辑操作",
     "toolbar_playback": "播放控制",
-    # "toolbar_timeline": "时间轴操作", # 已移除
 
     "setting_default_save_format": "默认双语保存格式",
     "setting_save_separated": "分行保存 (推荐)",
@@ -61,8 +60,7 @@ LANG = {
     "split_row_button": "拆分选中行",
 
     "timeline_controls_group": "打轴操作",
-    "mark_time_button": "标记并跳转 (F8)",
-    "mark_time_stay_button": "标记并停留 (F7)",
+    "mark_time_button": "标记时间戳 (F8)",
     
     "save_format_prompt_title": "选择保存格式",
     "save_format_prompt_text": "您想如何保存双语歌词？\n- 'Yes' 保存为分行格式\n- 'No' 保存为单行'/'分隔格式",

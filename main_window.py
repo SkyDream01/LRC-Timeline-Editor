@@ -97,15 +97,12 @@ class MainWindow(QMainWindow):
         self.rewind_action = QAction(qta.icon('fa5s.backward'), LANG['rewind_button'], self)
         self.forward_action = QAction(qta.icon('fa5s.forward'), LANG['forward_button'], self)
 
-        # 打轴 Actions (no longer in toolbar, but logic remains)
+        # 打轴 Actions
         self.mark_time_action = QAction(LANG['mark_time_button'], self)
         self.mark_time_action.setShortcut(QKeySequence("F8"))
-        self.mark_time_stay_action = QAction(LANG['mark_time_stay_button'], self)
-        self.mark_time_stay_action.setShortcut(QKeySequence("F7"))
 
         # 注册快捷键
         self.addAction(self.mark_time_action)
-        self.addAction(self.mark_time_stay_action)
 
 
     def init_ui(self):
@@ -264,13 +261,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(group)
         
         self.mark_time_button = QPushButton(LANG["mark_time_button"])
-        self.mark_time_stay_button = QPushButton(LANG["mark_time_stay_button"])
-        
         self.mark_time_button.setIcon(qta.icon('fa5s.map-marker-alt'))
-        self.mark_time_stay_button.setIcon(qta.icon('fa5s.thumbtack'))
-        
         layout.addWidget(self.mark_time_button)
-        layout.addWidget(self.mark_time_stay_button)
         
         return group
 
@@ -304,7 +296,6 @@ class MainWindow(QMainWindow):
         
         # Connect actions to handlers (shortcuts will trigger these)
         self.mark_time_action.triggered.connect(self.mark_timestamp)
-        self.mark_time_stay_action.triggered.connect(self.mark_timestamp_stay)
 
         # Widget-based signals
         self.add_row_button.clicked.connect(self.add_row)
@@ -314,7 +305,6 @@ class MainWindow(QMainWindow):
         
         # Connect new buttons
         self.mark_time_button.clicked.connect(self.mark_timestamp)
-        self.mark_time_stay_button.clicked.connect(self.mark_timestamp_stay)
 
         self.timeline_slider.sliderMoved.connect(self.player.set_pos)
         self.volume_slider.valueChanged.connect(self.on_volume_changed)
@@ -453,11 +443,11 @@ class MainWindow(QMainWindow):
         self.create_command("拆分行")
         self.update_lyrics_table()
 
-    def mark_timestamp_base(self):
+    def mark_timestamp(self):
         rows = self.get_selected_rows()
         if not rows:
             QMessageBox.warning(self, LANG["error_title"], LANG["error_no_selection"])
-            return None
+            return
         
         old_lrc_snapshot = copy.deepcopy(self.lrc)
         current_pos_ms = self.player.get_pos()
@@ -467,18 +457,12 @@ class MainWindow(QMainWindow):
         
         self.create_command("标记时间戳")
         self.update_lyrics_table()
-        return rows
+        # After marking, ensure the same rows remain selected
+        self.lyrics_table.blockSignals(True)
+        for row in rows:
+            self.lyrics_table.selectRow(row)
+        self.lyrics_table.blockSignals(False)
 
-    def mark_timestamp(self):
-        rows = self.mark_timestamp_base()
-        if rows and len(rows) == 1:
-            next_row = rows[0] + 1
-            if next_row < self.lyrics_table.rowCount():
-                self.lyrics_table.selectRow(next_row)
-
-    def mark_timestamp_stay(self):
-        self.mark_timestamp_base()
-    
     def show_about_dialog(self): 
         QMessageBox.about(self, LANG["about_dialog_title"], LANG["about_dialog_text"])
 
@@ -677,12 +661,10 @@ class MainWindow(QMainWindow):
         count = len(self.get_selected_rows())
         self.remove_row_button.setEnabled(count > 0)
         self.mark_time_action.setEnabled(count > 0)
-        self.mark_time_stay_action.setEnabled(count > 0)
         self.split_row_button.setEnabled(count == 1)
         self.merge_rows_button.setEnabled(count > 1)
         # Update new buttons
         self.mark_time_button.setEnabled(count > 0)
-        self.mark_time_stay_button.setEnabled(count > 0)
 
     def play_from_selection(self, item):
         row = item.row()
