@@ -1,6 +1,7 @@
 # player.py
 from PySide6.QtCore import QObject, QUrl, Signal
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+import functools
 
 class Player(QObject):
     """封装 QMediaPlayer 提供播放控制"""
@@ -14,10 +15,10 @@ class Player(QObject):
         self._audio_output = QAudioOutput()
         self._player.setAudioOutput(self._audio_output)
 
-        # 修正点: 使用 lambda 明确地重新发射信号，以避免C++签名冲突
-        self._player.positionChanged.connect(lambda pos: self.positionChanged.emit(pos))
-        self._player.durationChanged.connect(lambda dur: self.durationChanged.emit(dur))
-        self._player.playbackStateChanged.connect(lambda state: self.playbackStateChanged.emit(state))
+        # 使用partial替代lambda避免创建额外闭包
+        self._player.positionChanged.connect(functools.partial(self.positionChanged.emit))
+        self._player.durationChanged.connect(functools.partial(self.durationChanged.emit))
+        self._player.playbackStateChanged.connect(functools.partial(self.playbackStateChanged.emit))
 
     def load(self, file_path: str):
         """加载音频文件"""

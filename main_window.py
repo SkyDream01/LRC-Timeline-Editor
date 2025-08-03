@@ -493,10 +493,15 @@ class MainWindow(QMainWindow):
     def format_time(self, ms):
         if ms < 0: ms = 0
         total_seconds = ms / 1000.0
-        minutes = int(total_seconds / 60)
+        hours = int(total_seconds / 3600)
+        minutes = int((total_seconds % 3600) / 60)
         seconds = int(total_seconds % 60)
-        centiseconds = int((total_seconds - minutes * 60 - seconds) * 100)
-        return f"{minutes:02d}:{seconds:02d}.{centiseconds:02d}"
+        centiseconds = int((total_seconds - int(total_seconds)) * 100)
+        
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{centiseconds:02d}"
+        else:
+            return f"{minutes:02d}:{seconds:02d}.{centiseconds:02d}"
 
     def update_time_label(self, pos, dur):
         self.time_label.setText(f"{self.format_time(pos)} / {self.format_time(dur)}")
@@ -533,6 +538,12 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage(LANG["status_lyric_loaded"].format(file=os.path.basename(file_path)))
                 self.undo_stack.clear()
                 self.is_dirty = False
+            except FileNotFoundError:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_file_not_found"])
+            except PermissionError:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_permission_denied"])
+            except UnicodeDecodeError as e:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_encoding"].format(e=e))
             except Exception as e: 
                 QMessageBox.critical(self, LANG["error_title"], LANG["error_open_file"].format(e=e))
 
@@ -546,6 +557,12 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage(LANG["status_lyric_saved"].format(file=path))
                 self.is_dirty = False
                 return True
+            except FileNotFoundError:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_file_not_found"])
+            except PermissionError:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_permission_denied"])
+            except UnicodeEncodeError as e:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_encoding"].format(e=e))
             except Exception as e: 
                 QMessageBox.critical(self, LANG["error_title"], f"无法保存文件: {e}")
                 return False

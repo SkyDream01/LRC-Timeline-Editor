@@ -29,20 +29,29 @@ class Lrc:
                 self.meta[key.strip()] = value.strip()
                 continue
             
-            # 使用一个更通用的正则表达式来捕获时间戳
+            # 使用正则表达式捕获时间戳，格式为：[mm:ss.xx] 或 [mm:ss.xxx]
             time_tags_matches = re.findall(r'\[(\d{2,}):(\d{2,})\.(\d{2,3})\]', line)
+            # 获取歌词文本：最后一个时间标签之后的内容
             lyric_text = line[line.rfind(']') + 1:].strip() if ']' in line else line
 
             if time_tags_matches:
-                for m, s, ms_str in time_tags_matches:
-                    # 将毫秒部分统一处理成厘秒（截断或补齐）
-                    if len(ms_str) > 2:
-                        cs = int(ms_str[:2]) # 截断为厘秒
+                # 处理每个时间标签
+                for m, s, fraction in time_tags_matches:
+                    # 分钟转换为整数
+                    minutes = int(m)
+                    # 秒转换为整数
+                    seconds = int(s)
+                    # 处理小数部分（厘秒）：可能为2位或3位（百分秒或毫秒）
+                    # 如果是3位（毫秒），则取前两位作为厘秒（除以10取整），因为LRC精度为0.01秒
+                    if len(fraction) == 3:
+                        centiseconds = int(fraction) // 10
                     else:
-                        cs = int(ms_str)
-                    ts = int(m) * 60 + int(s) + cs / 100.0
+                        centiseconds = int(fraction)
+                    # 计算总时间（秒）：分钟*60 + 秒 + 厘秒/100
+                    ts = minutes * 60 + seconds + centiseconds / 100.0
                     time_map[ts].append(lyric_text)
             elif lyric_text:
+                # 没有时间戳的行
                 unstimed_lyrics.append(lyric_text)
         
         # 按时间戳对解析出的歌词行进行排序
@@ -52,14 +61,16 @@ class Lrc:
             original = ""
             translated = ""
 
-            if len(lyrics_at_ts) == 1:
+            # 如果同一时间戳有多行歌词，通常第一行是原文，第二行是译文
+            if len(lyrics_at_ts) >= 2:
+                original = lyrics_at_ts[0]
+                translated = lyrics_at_ts[1]
+            elif len(lyrics_at_ts) == 1:
+                # 如果只有一行，尝试用'/'或'|'分割原文和译文
                 parts = re.split(r'\s*[/|]\s*', lyrics_at_ts[0], maxsplit=1)
                 original = parts[0]
                 if len(parts) > 1:
                     translated = parts[1]
-            elif len(lyrics_at_ts) >= 2:
-                original = lyrics_at_ts[0]
-                translated = lyrics_at_ts[1]
 
             self.lyrics.append({'ts': ts, 'original': original, 'translated': translated})
         
