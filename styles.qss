@@ -1,148 +1,209 @@
-/* styles.qss - Modern Dark Theme for LRC Timeline Editor */
+/* styles.qss - Starry Sky Theme for LRC Timeline Editor */
 
-QWidget {
-    background-color: #2b2b2b;
-    color: #f0f0f0;
-    font-family: "Segoe UI", "Microsoft YaHei", "Roboto", "Helvetica", "Arial", sans-serif;
-    font-size: 10pt;
+/* * ===================================================================
+ * COLOR PALETTE (Starry Sky)
+ * ===================================================================
+ * - 深空背景: #0D1117 (极暗深空蓝)
+ * - 组件背景: #161B22 (暗星云蓝)
+ * - 文本/前景: #E6EDF3 (亮星白)
+ * - 禁用文本: #6E7681 (陨石灰)
+ * - 边框: #30363D (星系边界灰)
+ * * - 主色调/高亮: #58A6FF (亮星蓝)
+ * - 悬停色: #1F6FEB
+ * - 点击色: #0D419D
+ * - 播放高亮 (来自代码): #42A8CA (青色)
+ * - 选中高亮 (来自代码): #0654A3 (深蓝)
+ * - 错误/警告: #D16969 (红色)
+ * ===================================================================
+*/
+
+/* 全局设置 */
+QMainWindow, QWidget {
+    background-color: #0D1117;
+    color: #E6EDF3;
+    font-family: "Segoe UI", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
 }
 
-QMainWindow {
-    background-color: #2b2b2b;
+/* 按钮样式 */
+QPushButton {
+    background-color: #161B22;
+    color: #E6EDF3;
+    border: 1px solid #30363D;
+    padding: 5px 10px;
+    border-radius: 4px;
+    min-height: 20px;
 }
 
+QPushButton:hover {
+    background-color: #1F6FEB;
+    border: 1px solid #58A6FF;
+}
+
+QPushButton:pressed {
+    background-color: #0D419D;
+}
+
+QPushButton:disabled {
+    background-color: #161B22;
+    color: #6E7681;
+    border: 1px solid #30363D;
+}
+
+/* 输入框样式 */
+QLineEdit {
+    background-color: #0D1117;
+    border: 1px solid #30363D;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QLineEdit:focus {
+    border: 1px solid #58A6FF;
+}
+
+/* 分组框样式 */
 QGroupBox {
-    background-color: #3c3c3c;
-    border: 1px solid #555;
-    border-radius: 8px;
-    margin-top: 1em;
-    padding-top: 1em;
-    font-weight: bold;
+    background-color: #161B22;
+    border: 1px solid #30363D;
+    border-radius: 5px;
+    margin-top: 10px;
+    padding-top: 10px;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top center;
-    padding: 0 10px;
-    background-color: #3c3c3c;
-    color: #f0f0f0;
+    padding: 0 5px;
+    color: #E6EDF3;
 }
 
+/* 表格样式 */
 QTableWidget {
-    background-color: #3c3c3c;
-    border: 1px solid #555;
-    gridline-color: #555;
-    selection-background-color: #5a98d1;
-    selection-color: #ffffff;
+    background-color: #161B22;
+    border: 1px solid #30363D;
+    gridline-color: #30363D;
+    color: #E6EDF3;
 }
-
-QHeaderView::section {
-    background-color: #4a4a4a;
-    color: #f0f0f0;
-    padding: 4px;
-    border: 1px solid #555;
-    font-weight: bold;
+/* 注意: 选中项的颜色已在 main_window.py 中通过 setStyleSheet 硬编码。
+   此处的设置是备用方案，主要由Python代码控制高亮。 */
+QTableWidget::item:selected {
+    background-color: #0654A3; /* 深蓝 (来自代码逻辑) */
+    color: white;
 }
 
 QTableWidget::item {
     padding: 5px;
 }
 
-QLineEdit, QComboBox {
-    background-color: #2b2b2b;
-    border: 1px solid #555;
-    border-radius: 4px;
-    padding: 5px;
-    min-height: 20px;
+QHeaderView::section {
+    background-color: #0D1117;
+    color: #E6EDF3;
+    padding: 4px;
+    border: 1px solid #30363D;
 }
 
-QLineEdit:focus, QComboBox:focus {
-    border: 1px solid #5a98d1;
+/* 工具栏样式 */
+QToolBar {
+    background-color: #161B22;
+    border-bottom: 1px solid #30363D;
+    spacing: 5px;
 }
-
-QComboBox::drop-down {
+QToolBar QToolButton {
+    background-color: transparent;
     border: none;
+    padding: 4px;
 }
-
-QComboBox::down-arrow {
-    image: url(down_arrow.png); /* 建议替换为图标 */
-}
-
-
-QPushButton {
-    background-color: #5a98d1;
-    color: white;
-    border: none;
-    padding: 8px 16px;
+QToolBar QToolButton:hover {
+    background-color: #1F6FEB;
     border-radius: 4px;
-    font-weight: bold;
 }
 
-QPushButton:hover {
-    background-color: #6ba9e2;
-}
-
-QPushButton:pressed {
-    background-color: #4a8ac9;
-}
-
-QSlider::groove:horizontal {
-    border: 1px solid #555;
-    height: 4px;
-    background: #444;
-    margin: 2px 0;
-    border-radius: 2px;
-}
-
-QSlider::handle:horizontal {
-    background: #5a98d1;
-    border: 1px solid #5a98d1;
-    width: 16px;
-    height: 16px;
-    margin: -6px 0;
-    border-radius: 8px;
-}
-
-QDial {
-    background-color: #3c3c3c;
-}
-
+/* 菜单栏样式 */
 QMenuBar {
-    background-color: #3c3c3c;
-    color: #f0f0f0;
+    background-color: #161B22;
 }
-
 QMenuBar::item {
     background-color: transparent;
     padding: 4px 8px;
 }
-
 QMenuBar::item:selected {
-    background-color: #5a98d1;
+    background-color: #58A6FF;
 }
-
 QMenu {
-    background-color: #3c3c3c;
-    border: 1px solid #555;
+    background-color: #161B22;
+    border: 1px solid #30363D;
 }
-
-QMenu::item {
-    padding: 4px 20px;
-}
-
 QMenu::item:selected {
-    background-color: #5a98d1;
+    background-color: #58A6FF;
 }
 
+/* 状态栏样式 */
 QStatusBar {
-    background-color: #3c3c3c;
-    color: #f0f0f0;
+    background-color: #161B22;
+    border-top: 1px solid #30363D;
 }
 
-QMessageBox {
-    background-color: #3c3c3c;
+/* 滑块样式 */
+QSlider::groove:horizontal {
+    border: 1px solid #30363D;
+    height: 8px;
+    background: #0D1117;
+    margin: 2px 0;
+    border-radius: 4px;
 }
 
-QMessageBox QPushButton {
-    min-width: 80px;
+QSlider::handle:horizontal {
+    background: #58A6FF;
+    border: 1px solid #58A6FF;
+    width: 16px;
+    margin: -4px 0; 
+    border-radius: 8px;
+}
+
+/* 下拉框样式 */
+QComboBox {
+    background-color: #0D1117;
+    border: 1px solid #30363D;
+    border-radius: 4px;
+    padding: 1px 18px 1px 3px;
+}
+QComboBox::drop-down {
+    border-left: 1px solid #30363D;
+    width: 20px;
+}
+QComboBox QAbstractItemView {
+    background-color: #161B22;
+    border: 1px solid #30363D;
+    selection-background-color: #58A6FF;
+}
+
+/* 滚动条样式 */
+QScrollBar:vertical {
+    border: 1px solid #30363D;
+    background: #0D1117;
+    width: 15px;
+    margin: 15px 0 15px 0;
+}
+QScrollBar::handle:vertical {
+    background: #30363D;
+    min-height: 20px;
+    border-radius: 7px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    border: 1px solid #30363D;
+    background: #0D1117;
+    height: 15px;
+    margin: 0 15px 0 15px;
+}
+QScrollBar::handle:horizontal {
+    background: #30363D;
+    min-width: 20px;
+    border-radius: 7px;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
 }

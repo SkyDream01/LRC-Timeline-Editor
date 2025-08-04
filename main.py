@@ -6,9 +6,10 @@ from main_window import MainWindow, resource_path
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-
+    
+    # 加载QSS样式表
     try:
-        # 使用 resource_path 获取 styles.qss 的正确路径
+        # 使用resource_path获取styles.qss的正确路径
         qss_path = resource_path('styles.qss')
         with open(qss_path, 'r', encoding='utf-8') as f:
             style = f.read()

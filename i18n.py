@@ -28,7 +28,7 @@ LANG = {
     "about_dialog_text": (
         "<h3>LRC Timeline Editor</h3>"
         "<p>一个用于创建和校准双语LRC歌词的工具。</p>"
-        "<p>版本: 1.4.0 </p>"
+        "<p>版本: 1.5.0 </p>"
         "<p>项目主页: <a href='https://github.com/SkyDream01/LRC-Timeline-Editor'>https://github.com/SkyDream01/LRC-Timeline-Editor</a></p>"
         "<p>这是一个开源项目，欢迎贡献！</p>"
     ),
