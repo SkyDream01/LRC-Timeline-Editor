@@ -60,7 +60,7 @@ LANG = {
     "split_row_button": "拆分选中行",
 
     "timeline_controls_group": "打轴操作",
-    "mark_time_button": "标记时间戳 (F8)",
+    "mark_time_button": "标记时间戳",
     
     "save_format_prompt_title": "选择保存格式",
     "save_format_prompt_text": "您想如何保存双语歌词？\n- 'Yes' 保存为分行格式\n- 'No' 保存为单行'/'分隔格式",

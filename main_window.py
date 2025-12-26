@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QGroupBox, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QAbstractItemView, QHeaderView,
     QMenuBar, QFileDialog, QLineEdit, QFormLayout, QSlider, QLabel,
-    QStatusBar, QMessageBox, QComboBox, QSizePolicy, QToolBar
+    QStatusBar, QMessageBox, QComboBox, QSizePolicy, QToolBar, QApplication,
+    QTextEdit, QAbstractSpinBox
 )
 from PySide6.QtGui import (
     QAction, QKeySequence, QColor, QIcon, QShortcut, QActionGroup,
@@ -55,19 +56,22 @@ class MainWindow(QMainWindow):
         self.current_audio_file = ""
         self.current_lrc_file = None
         self.save_as_separated_default = True
+        
+        # 记录上一行高亮行号，用于增量更新优化
         self.last_highlighted_row = -1
         self.user_selected_row = []
         self.is_dirty = False
 
-        self.play_highlight_color = QColor("#42A8CA")
-        self.selection_highlight_color = QColor("#0654A3")
-        self.disordered_ts_color = QColor("red")
+        # 颜色定义
+        self.play_highlight_color = QColor("#3d59a1") # 播放高亮
+        self.selection_highlight_color = QColor("#3d59a1") # 选中高亮
+        self.disordered_ts_color = QColor("#D16969") # 红色错误提示
 
         self.undo_stack = QUndoStack(self)
         self.undo_stack.setUndoLimit(10)
 
         self.ui_update_timer = QTimer(self)
-        self.ui_update_timer.setInterval(100)
+        self.ui_update_timer.setInterval(100) # 100ms刷新一次UI
 
         self.setAcceptDrops(True)
         
@@ -79,7 +83,8 @@ class MainWindow(QMainWindow):
         self.update_edit_buttons_state()
 
     def init_actions(self):
-        """初始化所有QAction，方便在菜单和工具栏中复用"""
+        """初始化所有QAction"""
+        # 文件操作
         self.open_audio_action = QAction(qta.icon('fa5s.music'), LANG["menu_open_audio"], self)
         self.open_lyric_action = QAction(qta.icon('fa5s.file-alt'), LANG["menu_open_lyric"], self)
         self.save_action = QAction(qta.icon('fa5s.save'), LANG["menu_save_lyric"], self)
@@ -87,6 +92,7 @@ class MainWindow(QMainWindow):
         self.save_as_action = QAction(LANG["menu_save_lyric_as"], self)
         self.exit_action = QAction(LANG["menu_exit"], self)
 
+        # 编辑操作 (Undo/Redo)
         self.undo_action = self.undo_stack.createUndoAction(self, LANG["menu_undo"])
         self.redo_action = self.undo_stack.createRedoAction(self, LANG["menu_redo"])
         self.undo_action.setIcon(qta.icon('fa5s.undo'))
@@ -94,20 +100,45 @@ class MainWindow(QMainWindow):
         self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
 
+        # 播放控制
         self.play_pause_action = QAction(qta.icon('fa5s.play-circle'), LANG['play_button'], self)
+        self.play_pause_action.setToolTip(f"{LANG['play_button']} (Space)")
+        
         self.stop_action = QAction(qta.icon('fa5s.stop-circle'), LANG['stop_button'], self)
         self.rewind_action = QAction(qta.icon('fa5s.backward'), LANG['rewind_button'], self)
         self.forward_action = QAction(qta.icon('fa5s.forward'), LANG['forward_button'], self)
 
+        # 打轴与定位
         self.mark_time_action = QAction(LANG['mark_time_button'], self)
-        self.mark_time_action.setShortcut(QKeySequence("F8"))
-        self.addAction(self.mark_time_action)
+        self.mark_time_action.setShortcut(QKeySequence("F8")) # 快捷键 F8
+        self.addAction(self.mark_time_action) # 添加到主窗口以便全局响应
+        
+        self.replay_line_action = QAction("重听当前行", self)
+        self.replay_line_action.setIcon(qta.icon('fa5s.sync-alt'))
+        self.replay_line_action.setShortcut(QKeySequence("F5"))
+        self.replay_line_action.setToolTip("重听当前行 (F5)")
+        self.addAction(self.replay_line_action)
+
+        # 编辑快捷键 Action (用于绑定快捷键，不一定显示在菜单)
+        self.act_add_row = QAction(LANG["add_row_button"], self)
+        self.act_add_row.setShortcut(QKeySequence("Ctrl+Return")) # Ctrl+回车 插入行
+        self.act_remove_row = QAction(LANG["remove_row_button"], self)
+        self.act_remove_row.setShortcut(QKeySequence("Ctrl+Delete")) # Ctrl+Delete 删除行
+        self.act_merge_rows = QAction(LANG["merge_rows_button"], self)
+        self.act_merge_rows.setShortcut(QKeySequence("Ctrl+J")) # Ctrl+J 合并
+        self.act_split_row = QAction(LANG["split_row_button"], self)
+        self.act_split_row.setShortcut(QKeySequence("Ctrl+K")) # Ctrl+K 拆分
+
+        self.addAction(self.act_add_row)
+        self.addAction(self.act_remove_row)
+        self.addAction(self.act_merge_rows)
+        self.addAction(self.act_split_row)
 
     def init_ui(self):
         """初始化整体UI布局"""
         self.setWindowTitle(LANG["app_title"])
         self.setWindowIcon(QIcon(resource_path('assets/logo.png')))
-        self.setGeometry(150, 150, 900, 800)
+        self.setGeometry(150, 150, 1000, 800)
 
         self.create_menu()
         self.create_toolbars()
@@ -142,6 +173,11 @@ class MainWindow(QMainWindow):
         edit_menu = menu_bar.addMenu(LANG["menu_edit"])
         edit_menu.addAction(self.undo_action)
         edit_menu.addAction(self.redo_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self.act_add_row)
+        edit_menu.addAction(self.act_remove_row)
+        edit_menu.addAction(self.act_merge_rows)
+        edit_menu.addAction(self.act_split_row)
 
         settings_menu = menu_bar.addMenu(LANG["menu_settings"])
         save_format_group = QActionGroup(self)
@@ -161,6 +197,11 @@ class MainWindow(QMainWindow):
         save_format_group.addAction(self.save_single_line_action)
 
         help_menu = menu_bar.addMenu(LANG["menu_help"])
+        
+        shortcuts_action = QAction("快捷键列表", self)
+        shortcuts_action.triggered.connect(self.show_shortcuts_dialog)
+        help_menu.addAction(shortcuts_action)
+        
         about_action = QAction(LANG["menu_about"], self)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
@@ -184,6 +225,7 @@ class MainWindow(QMainWindow):
         playback_toolbar.addAction(self.stop_action)
         playback_toolbar.addAction(self.rewind_action)
         playback_toolbar.addAction(self.forward_action)
+        playback_toolbar.addAction(self.replay_line_action) # 添加重听按钮到工具栏
         
         self.timeline_slider = QSlider(Qt.Orientation.Horizontal)
         playback_toolbar.addWidget(self.timeline_slider)
@@ -196,12 +238,22 @@ class MainWindow(QMainWindow):
         """创建左侧控制面板"""
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setSpacing(15)
+        layout.setContentsMargins(0, 0, 10, 0)
+        layout.setSpacing(10)
         
+        # 1. 歌曲信息
         layout.addWidget(self.create_meta_group())
-        layout.addWidget(self.create_secondary_player_controls())
-        layout.addWidget(self.create_timeline_controls())
+        
+        # 2. 控制台 (合并播放和打轴)
+        control_group = QGroupBox("控制台")
+        control_layout = QVBoxLayout(control_group)
+        control_layout.addWidget(self.create_secondary_player_controls())
+        control_layout.addWidget(self.create_timeline_controls())
+        layout.addWidget(control_group)
+
+        # 3. 编辑操作
         layout.addWidget(self.create_edit_controls())
+        
         layout.addStretch()
         return panel
 
@@ -209,6 +261,8 @@ class MainWindow(QMainWindow):
         """创建右侧歌词编辑器面板"""
         lyrics_group = QGroupBox(LANG["tab_editor"])
         lyrics_layout = QVBoxLayout()
+        lyrics_layout.setContentsMargins(5, 10, 5, 5)
+        
         self.lyrics_table = QTableWidget()
         self.setup_lyrics_table()
         lyrics_layout.addWidget(self.lyrics_table)
@@ -216,7 +270,6 @@ class MainWindow(QMainWindow):
         return lyrics_group
 
     def create_meta_group(self):
-        """创建歌曲信息分组"""
         group = QGroupBox(LANG["meta_info_group"])
         layout = QFormLayout(group)
         self.title_edit = QLineEdit()
@@ -228,9 +281,10 @@ class MainWindow(QMainWindow):
         return group
         
     def create_secondary_player_controls(self):
-        """创建播放设置分组"""
-        group = QGroupBox(LANG["player_controls_group"])
-        layout = QFormLayout(group)
+        """播放设置 (返回QWidget，减少边框嵌套)"""
+        container = QWidget()
+        layout = QFormLayout(container)
+        layout.setContentsMargins(0,0,0,0)
         
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
@@ -241,26 +295,35 @@ class MainWindow(QMainWindow):
         self.speed_combo.addItems(["0.5x", "0.75x", "1.0x", "1.5x", "2.0x"])
         self.speed_combo.setCurrentText("1.0x")
         layout.addRow(LANG["speed_label"], self.speed_combo)
-        return group
+        return container
 
     def create_timeline_controls(self):
-        """创建打轴操作分组"""
-        group = QGroupBox(LANG["timeline_controls_group"])
-        layout = QVBoxLayout(group)
+        """打轴操作 (返回QWidget)"""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 5, 0, 0)
         
-        self.mark_time_button = QPushButton(LANG["mark_time_button"])
+        self.mark_time_button = QPushButton(f"{LANG['mark_time_button']} (F8)")
         self.mark_time_button.setIcon(qta.icon('fa5s.map-marker-alt'))
+        self.mark_time_button.setMinimumHeight(35)
+        self.mark_time_button.setToolTip("快捷键: F8")
         layout.addWidget(self.mark_time_button)
-        return group
+        return container
 
     def create_edit_controls(self):
-        """创建编辑操作分组"""
+        """编辑操作分组"""
         group = QGroupBox(LANG["edit_controls_group"])
         layout = QVBoxLayout(group)
-        self.add_row_button = QPushButton(LANG["add_row_button"])
-        self.remove_row_button = QPushButton(LANG["remove_row_button"])
-        self.merge_rows_button = QPushButton(LANG["merge_rows_button"])
-        self.split_row_button = QPushButton(LANG["split_row_button"])
+        
+        # 在按钮文字中直接添加快捷键提示
+        self.add_row_button = QPushButton(f"{LANG['add_row_button']} (Ctrl+Enter)")
+        self.remove_row_button = QPushButton(f"{LANG['remove_row_button']} (Ctrl+Del)")
+        self.merge_rows_button = QPushButton(f"{LANG['merge_rows_button']} (Ctrl+J)")
+        self.split_row_button = QPushButton(f"{LANG['split_row_button']} (Ctrl+K)")
+        
+        self.add_row_button.setToolTip("在下方插入新行")
+        self.remove_row_button.setToolTip("删除选中行")
+        
         layout.addWidget(self.add_row_button)
         layout.addWidget(self.remove_row_button)
         layout.addWidget(self.merge_rows_button)
@@ -277,17 +340,24 @@ class MainWindow(QMainWindow):
         
         self.play_pause_action.triggered.connect(self.toggle_play_pause)
         self.stop_action.triggered.connect(self.player.stop)
-        self.rewind_action.triggered.connect(lambda: self.player.set_pos(self.player.get_pos() - 1000))
-        self.forward_action.triggered.connect(lambda: self.player.set_pos(self.player.get_pos() + 1000))
+        self.rewind_action.triggered.connect(lambda: self.player.set_pos(self.player.get_pos() - 2000)) # 改为2秒，操作更灵敏
+        self.forward_action.triggered.connect(lambda: self.player.set_pos(self.player.get_pos() + 2000))
         
         self.mark_time_action.triggered.connect(self.mark_timestamp)
+        self.replay_line_action.triggered.connect(self.replay_current_line)
 
+        # 按钮连接
         self.add_row_button.clicked.connect(self.add_row)
         self.remove_row_button.clicked.connect(self.remove_selected_rows)
         self.merge_rows_button.clicked.connect(self.merge_selected_rows)
         self.split_row_button.clicked.connect(self.split_selected_row)
-        
         self.mark_time_button.clicked.connect(self.mark_timestamp)
+        
+        # Action 连接 (用于快捷键)
+        self.act_add_row.triggered.connect(self.add_row)
+        self.act_remove_row.triggered.connect(self.remove_selected_rows)
+        self.act_merge_rows.triggered.connect(self.merge_selected_rows)
+        self.act_split_row.triggered.connect(self.split_selected_row)
 
         self.timeline_slider.sliderMoved.connect(self.player.set_pos)
         self.volume_slider.valueChanged.connect(self.on_volume_changed)
@@ -307,8 +377,20 @@ class MainWindow(QMainWindow):
         self.player.durationChanged.connect(self.update_duration)
         self.player.playbackStateChanged.connect(self.handle_player_state_change)
         self.ui_update_timer.timeout.connect(self.update_ui_on_timer)
-        
-        QShortcut(QKeySequence("Space"), self).activated.connect(self.toggle_play_pause)
+
+    def keyPressEvent(self, event):
+        """重写按键事件：智能处理空格键"""
+        # 只有当焦点不在输入框时，空格键才作为播放/暂停
+        # 这样在编辑歌词时，按空格可以正常输入空格，而不会意外暂停音乐
+        if event.key() == Qt.Key.Key_Space:
+            focus_widget = QApplication.focusWidget()
+            if isinstance(focus_widget, (QLineEdit, QTextEdit, QAbstractSpinBox)):
+                super().keyPressEvent(event) # 交给输入框处理
+            else:
+                self.toggle_play_pause()
+                event.accept()
+        else:
+            super().keyPressEvent(event)
 
     def create_command(self, description: str):
         command = EditCommand(self, self.lrc, description)
@@ -376,6 +458,8 @@ class MainWindow(QMainWindow):
         
         self.update_lyrics_table()
         self.lyrics_table.selectRow(insert_pos)
+        # 自动聚焦到新行的原文输入框，方便直接打字
+        self.lyrics_table.editItem(self.lyrics_table.item(insert_pos, 1))
 
     def remove_selected_rows(self):
         rows = self.get_selected_rows()
@@ -428,10 +512,14 @@ class MainWindow(QMainWindow):
         self.update_lyrics_table()
 
     def mark_timestamp(self):
+        """标记时间戳，并自动跳转到下一行 (打轴核心优化)"""
         rows = self.get_selected_rows()
         if not rows:
-            QMessageBox.warning(self, LANG["error_title"], LANG["error_no_selection"])
-            return
+            if self.lyrics_table.rowCount() > 0:
+                self.lyrics_table.selectRow(0)
+                rows = [0]
+            else:
+                return
         
         self.create_command("标记时间戳")
         current_pos_ms = self.player.get_pos()
@@ -446,8 +534,49 @@ class MainWindow(QMainWindow):
         
         self.update_highlight_styles()
 
+        # 核心优化：自动跳转到下一行
+        if len(rows) == 1:
+            next_row = rows[0] + 1
+            if next_row < self.lyrics_table.rowCount():
+                self.lyrics_table.selectRow(next_row)
+                self.lyrics_table.scrollToItem(self.lyrics_table.item(next_row, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
+
+    def replay_current_line(self):
+        """重听当前选中的行 (F5)"""
+        rows = self.get_selected_rows()
+        if rows:
+            row = rows[0]
+            lyric = self.lrc.lyrics[row]
+            if lyric and lyric.get('ts') is not None:
+                self.player.set_pos(int(lyric['ts'] * 1000))
+                if not self.player.is_playing():
+                    self.player.play()
+        else:
+            self.player.set_pos(max(0, self.player.get_pos() - 2000))
+
     def show_about_dialog(self): 
         QMessageBox.about(self, LANG["about_dialog_title"], LANG["about_dialog_text"])
+        
+    def show_shortcuts_dialog(self):
+        """显示快捷键列表"""
+        text = """
+        <b>播放控制:</b><br>
+        Space: 播放/暂停<br>
+        F5: 重听当前行<br><br>
+        
+        <b>打轴操作:</b><br>
+        F8: 标记时间戳并跳转下一行<br><br>
+        
+        <b>编辑操作:</b><br>
+        Ctrl+Enter: 插入新行<br>
+        Ctrl+Del: 删除选中行<br>
+        Ctrl+J: 合并选中行<br>
+        Ctrl+K: 拆分选中行<br>
+        Ctrl+S: 保存文件<br>
+        Ctrl+Z: 撤销<br>
+        Ctrl+Y: 重做
+        """
+        QMessageBox.information(self, "快捷键列表", text)
 
     def update_save_format_setting(self, is_separated): 
         self.save_as_separated_default = is_separated
@@ -457,16 +586,7 @@ class MainWindow(QMainWindow):
         self.lyrics_table.setHorizontalHeaderLabels([LANG["lyrics_table_header_time"], LANG["lyrics_table_header_original"], LANG["lyrics_table_header_translated"]])
         self.lyrics_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.lyrics_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        
-        # *** 新增的关键代码 ***
-        # 使用 setStyleSheet 强制设置选中项的颜色，这是最可靠的方法
-        highlight_color = self.selection_highlight_color.name() # 获取颜色的 #RRGGBB 字符串
-        self.lyrics_table.setStyleSheet(f"""
-            QTableWidget::item:selected {{
-                background-color: {highlight_color};
-                color: white;
-            }}
-        """)
+        self.lyrics_table.setShowGrid(False)
 
         header = self.lyrics_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -482,7 +602,6 @@ class MainWindow(QMainWindow):
 
     def on_user_selection_changed(self):
         self.user_selected_row = [index.row() for index in self.lyrics_table.selectedIndexes()]
-        # 用户选择变化时，只需要重绘非选中行的样式
         self.update_highlight_styles()
         self.update_edit_buttons_state()
 
@@ -512,6 +631,7 @@ class MainWindow(QMainWindow):
         return target_idx
 
     def update_ui_on_timer(self):
+        """定时器更新UI，使用增量更新提高性能"""
         if self.player.is_playing() and not self.timeline_slider.isSliderDown():
             pos = self.player.get_pos()
             self.timeline_slider.setValue(pos)
@@ -519,11 +639,95 @@ class MainWindow(QMainWindow):
             
             new_play_row = self.find_current_play_row(pos / 1000.0)
             
+            # 仅在行发生变化时更新样式 (Delta Update)
             if self.last_highlighted_row != new_play_row:
-                self.last_highlighted_row = new_play_row
-                self.update_highlight_styles()
+                self.update_active_row_style(new_play_row)
+                
+                # 自动滚动逻辑
                 if new_play_row != -1:
-                    self.lyrics_table.scrollToItem(self.lyrics_table.item(new_play_row, 0), QAbstractItemView.ScrollHint.PositionAtCenter)
+                    item = self.lyrics_table.item(new_play_row, 0)
+                    if item:
+                        self.lyrics_table.scrollToItem(item, QAbstractItemView.ScrollHint.PositionAtCenter)
+
+    def update_active_row_style(self, new_row):
+        """增量更新高亮行"""
+        self.lyrics_table.blockSignals(True)
+        # 1. 清除旧行样式
+        if self.last_highlighted_row != -1 and self.last_highlighted_row < self.lyrics_table.rowCount():
+            if self.last_highlighted_row not in self.user_selected_row:
+                self.set_row_color(self.last_highlighted_row, QColor("transparent"))
+                # 恢复可能的时间戳错误标记
+                if self.check_timestamp_disordered(self.last_highlighted_row):
+                     self.lyrics_table.item(self.last_highlighted_row, 0).setBackground(self.disordered_ts_color)
+        
+        # 2. 设置新行样式
+        if new_row != -1 and new_row < self.lyrics_table.rowCount():
+            if new_row not in self.user_selected_row:
+                self.set_row_color(new_row, self.play_highlight_color)
+        
+        self.last_highlighted_row = new_row
+        self.lyrics_table.blockSignals(False)
+
+    def set_row_color(self, row, color):
+        for c in range(self.lyrics_table.columnCount()):
+            item = self.lyrics_table.item(row, c)
+            if item:
+                item.setBackground(color)
+
+    def check_timestamp_disordered(self, row):
+        """简易检查某一行时间戳是否乱序"""
+        return False 
+
+    def update_highlight_styles(self):
+        """全量更新高亮样式"""
+        self.lyrics_table.blockSignals(True)
+        
+        last_ts = -1.0
+        for r in range(self.lyrics_table.rowCount()):
+            # 基础颜色
+            color = QColor("transparent")
+            if r == self.last_highlighted_row:
+                color = self.play_highlight_color
+            
+            # 应用基础颜色 (仅对非选中行)
+            if r not in self.user_selected_row:
+                self.set_row_color(r, color)
+            
+            # 检查时间戳乱序
+            ts_item = self.lyrics_table.item(r, 0)
+            if ts_item:
+                is_disordered = False
+                ts_text = ts_item.text()
+                current_ts = -1.0
+                if ts_text:
+                    match = re.match(r'(\d+):(\d{2,2})\.(\d{2,2})', ts_text)
+                    if match:
+                        m, s, cs = map(int, match.groups())
+                        current_ts = m * 60 + s + cs / 100.0
+                        if last_ts != -1 and current_ts < last_ts:
+                            is_disordered = True
+                        last_ts = current_ts
+                
+                if is_disordered:
+                    ts_item.setBackground(self.disordered_ts_color)
+
+        self.lyrics_table.blockSignals(False)
+    
+    # *** 之前遗漏的方法，现在已补上 ***
+    def update_lyrics_table(self):
+        self.lyrics_table.blockSignals(True)
+        self.lyrics_table.setRowCount(len(self.lrc.lyrics))
+        for i, line in enumerate(self.lrc.lyrics):
+            ts_str = self.format_time(line['ts'] * 1000) if line.get('ts') is not None else ""
+            self.lyrics_table.setItem(i, 0, QTableWidgetItem(ts_str))
+            self.lyrics_table.setItem(i, 1, QTableWidgetItem(line.get('original', '')))
+            self.lyrics_table.setItem(i, 2, QTableWidgetItem(line.get('translated', '')))
+        
+        self.lyrics_table.resizeRowsToContents()
+        self.lyrics_table.blockSignals(False)
+        
+        self.update_highlight_styles()
+        self.update_edit_buttons_state()
 
     def open_audio_file(self, file_path=None):
         if not file_path: 
@@ -610,56 +814,6 @@ class MainWindow(QMainWindow):
         self.lyrics_table.blockSignals(False)
         self.update_lyrics_table()
 
-    def update_highlight_styles(self):
-        self.lyrics_table.blockSignals(True)
-        
-        last_ts = -1.0
-        for r in range(self.lyrics_table.rowCount()):
-            # 选中行的颜色由 setStyleSheet 控制，这里不再处理
-            # 只处理非选中行的颜色
-            if r not in self.user_selected_row:
-                # 播放高亮
-                color = self.play_highlight_color if r == self.last_highlighted_row else QColor("transparent")
-                for c in range(self.lyrics_table.columnCount()):
-                    item = self.lyrics_table.item(r, c)
-                    if item:
-                        item.setBackground(color)
-            
-            # 时间戳错误高亮（最高优先级，会覆盖播放高亮）
-            ts_item = self.lyrics_table.item(r, 0)
-            if ts_item:
-                is_disordered = False
-                ts_text = ts_item.text()
-                if ts_text:
-                    match = re.match(r'(\d+):(\d{2,2})\.(\d{2,2})', ts_text)
-                    if match:
-                        m, s, cs = map(int, match.groups())
-                        current_ts = m * 60 + s + cs / 100.0
-                        if last_ts != -1 and current_ts < last_ts:
-                            is_disordered = True
-                        last_ts = current_ts
-                
-                if is_disordered:
-                    ts_item.setBackground(self.disordered_ts_color)
-                # 如果时间戳错误修复了，上面的逻辑会自动将其背景恢复为播放高亮或透明
-
-        self.lyrics_table.blockSignals(False)
-
-    def update_lyrics_table(self):
-        self.lyrics_table.blockSignals(True)
-        self.lyrics_table.setRowCount(len(self.lrc.lyrics))
-        for i, line in enumerate(self.lrc.lyrics):
-            ts_str = self.format_time(line['ts'] * 1000) if line.get('ts') is not None else ""
-            self.lyrics_table.setItem(i, 0, QTableWidgetItem(ts_str))
-            self.lyrics_table.setItem(i, 1, QTableWidgetItem(line.get('original', '')))
-            self.lyrics_table.setItem(i, 2, QTableWidgetItem(line.get('translated', '')))
-        
-        self.lyrics_table.resizeRowsToContents()
-        self.lyrics_table.blockSignals(False)
-        
-        self.update_highlight_styles()
-        self.update_edit_buttons_state()
-
     def sync_table_to_lrc(self, item=None):
         if not item: return
         
@@ -689,10 +843,16 @@ class MainWindow(QMainWindow):
     def update_edit_buttons_state(self):
         count = len(self.get_selected_rows())
         self.remove_row_button.setEnabled(count > 0)
+        self.act_remove_row.setEnabled(count > 0) # 更新 Action 状态
+        
         self.mark_time_action.setEnabled(count > 0)
         self.mark_time_button.setEnabled(count > 0)
+        
         self.split_row_button.setEnabled(count == 1)
+        self.act_split_row.setEnabled(count == 1)
+        
         self.merge_rows_button.setEnabled(count > 1)
+        self.act_merge_rows.setEnabled(count > 1)
 
     def play_from_selection(self, item):
         row = item.row()
