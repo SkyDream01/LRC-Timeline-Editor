@@ -27,8 +27,9 @@ def resource_path(relative_path):
     """ 获取资源的绝对路径，适用于开发环境和 PyInstaller 打包环境 """
     try:
         base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+    except AttributeError:
+        # 不在PyInstaller打包环境中，使用脚本所在目录
+        base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
 class EditCommand(QUndoCommand):
@@ -113,10 +114,10 @@ class MainWindow(QMainWindow):
         self.mark_time_action.setShortcut(QKeySequence("F8")) # 快捷键 F8
         self.addAction(self.mark_time_action) # 添加到主窗口以便全局响应
         
-        self.replay_line_action = QAction("重听当前行", self)
+        self.replay_line_action = QAction(LANG["replay_line_action"], self)
         self.replay_line_action.setIcon(qta.icon('fa5s.sync-alt'))
         self.replay_line_action.setShortcut(QKeySequence("F5"))
-        self.replay_line_action.setToolTip("重听当前行 (F5)")
+        self.replay_line_action.setToolTip(LANG["replay_line_tooltip"])
         self.addAction(self.replay_line_action)
 
         # 编辑快捷键 Action (用于绑定快捷键，不一定显示在菜单)
@@ -198,7 +199,7 @@ class MainWindow(QMainWindow):
 
         help_menu = menu_bar.addMenu(LANG["menu_help"])
         
-        shortcuts_action = QAction("快捷键列表", self)
+        shortcuts_action = QAction(LANG["shortcuts_action"], self)
         shortcuts_action.triggered.connect(self.show_shortcuts_dialog)
         help_menu.addAction(shortcuts_action)
         
@@ -245,7 +246,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.create_meta_group())
         
         # 2. 控制台 (合并播放和打轴)
-        control_group = QGroupBox("控制台")
+        control_group = QGroupBox(LANG["control_console"])
         control_layout = QVBoxLayout(control_group)
         control_layout.addWidget(self.create_secondary_player_controls())
         control_layout.addWidget(self.create_timeline_controls())
@@ -321,8 +322,8 @@ class MainWindow(QMainWindow):
         self.merge_rows_button = QPushButton(f"{LANG['merge_rows_button']} (Ctrl+J)")
         self.split_row_button = QPushButton(f"{LANG['split_row_button']} (Ctrl+K)")
         
-        self.add_row_button.setToolTip("在下方插入新行")
-        self.remove_row_button.setToolTip("删除选中行")
+        self.add_row_button.setToolTip(LANG["add_row_tooltip"])
+        self.remove_row_button.setToolTip(LANG["remove_row_tooltip"])
         
         layout.addWidget(self.add_row_button)
         layout.addWidget(self.remove_row_button)
@@ -465,7 +466,7 @@ class MainWindow(QMainWindow):
         rows = self.get_selected_rows()
         if not rows: return
         
-        reply = QMessageBox.question(self, "确认删除", f"您确定要删除选中的 {len(rows)} 行吗？",
+        reply = QMessageBox.question(self, LANG["confirm_delete_title"], LANG["confirm_delete_text"].format(rows=len(rows)),
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.No: return
         
@@ -576,7 +577,7 @@ class MainWindow(QMainWindow):
         Ctrl+Z: 撤销<br>
         Ctrl+Y: 重做
         """
-        QMessageBox.information(self, "快捷键列表", text)
+        QMessageBox.information(self, LANG["shortcuts_dialog_title"], text)
 
     def update_save_format_setting(self, is_separated): 
         self.save_as_separated_default = is_separated
@@ -614,7 +615,12 @@ class MainWindow(QMainWindow):
         total_seconds = ms / 1000.0
         minutes = int(total_seconds / 60)
         seconds = int(total_seconds % 60)
-        centiseconds = int((total_seconds - int(total_seconds)) * 100)
+        centiseconds = int(round((total_seconds - int(total_seconds)) * 100))
+        # 确保厘秒在0-99范围内
+        if centiseconds >= 100:
+            centiseconds = 99
+        elif centiseconds < 0:
+            centiseconds = 0
         return f"{minutes:02d}:{seconds:02d}.{centiseconds:02d}"
 
     def update_time_label(self, pos, dur):
@@ -754,8 +760,10 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage(LANG["status_lyric_loaded"].format(file=os.path.basename(file_path)))
                 self.undo_stack.clear()
                 self.is_dirty = False
-            except Exception as e: 
+            except (OSError, ValueError) as e: 
                 QMessageBox.critical(self, LANG["error_title"], LANG["error_open_file"].format(e=e))
+            except Exception as e:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_unknown"].format(e=e))
 
     def save_lrc_file(self):
         path = self.current_lrc_file
@@ -767,8 +775,11 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage(LANG["status_lyric_saved"].format(file=path))
                 self.is_dirty = False
                 return True
-            except Exception as e: 
-                QMessageBox.critical(self, LANG["error_title"], f"无法保存文件: {e}")
+            except OSError as e: 
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_save_system"].format(e=e))
+                return False
+            except Exception as e:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_save_unknown"].format(e=e))
                 return False
         else: 
             return self.save_lrc_file_as()
@@ -789,8 +800,11 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage(LANG["status_lyric_saved"].format(file=path))
                 self.is_dirty = False
                 return True
-            except Exception as e: 
-                QMessageBox.critical(self, LANG["error_title"], f"无法保存文件: {e}")
+            except OSError as e: 
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_save_system"].format(e=e))
+                return False
+            except Exception as e:
+                QMessageBox.critical(self, LANG["error_title"], LANG["error_save_unknown"].format(e=e))
                 return False
         return False
     

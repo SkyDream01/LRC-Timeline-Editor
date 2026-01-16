@@ -85,6 +85,19 @@ class Lrc:
         # self.sort_lyrics()
 
 
+    @staticmethod
+    def format_timestamp(ts: float) -> str:
+        """将秒数格式化为LRC时间戳字符串 [mm:ss.xx]"""
+        minutes = int(ts / 60)
+        seconds = int(ts % 60)
+        centiseconds = int(round((ts - minutes * 60 - seconds) * 100))
+        # 确保厘秒在0-99范围内
+        if centiseconds >= 100:
+            centiseconds = 99
+        elif centiseconds < 0:
+            centiseconds = 0
+        return f"[{minutes:02d}:{seconds:02d}.{centiseconds:02d}]"
+
     def to_lrc_string(self, save_as_bilingual_separated=True) -> str:
         """生成LRC格式的字符串，精度为0.01s"""
         lrc_parts = []
@@ -101,10 +114,7 @@ class Lrc:
             translated = line_data.get('translated', '')
 
             if ts is not None:
-                minutes = int(ts / 60)
-                seconds = int(ts % 60)
-                centiseconds = int((ts - minutes * 60 - seconds) * 100)
-                time_str = f"[{minutes:02d}:{seconds:02d}.{centiseconds:02d}]"
+                time_str = self.format_timestamp(ts)
             else:
                 time_str = ""
 

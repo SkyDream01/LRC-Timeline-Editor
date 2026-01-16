@@ -86,5 +86,19 @@ LANG = {
     "error_open_file": "无法打开或解析文件: {e}",
     "error_no_selection": "请先在表格中选择一行。",
     "error_need_one_row": "此操作需要且仅能选择一行。",
-    "error_need_two_rows": "此操作需要选择两行或更多行。"
+    "error_need_two_rows": "此操作需要选择两行或更多行。",
+    "confirm_delete_title": "确认删除",
+    "confirm_delete_text": "您确定要删除选中的 {rows} 行吗？",
+    "shortcuts_action": "快捷键列表",
+    "shortcuts_dialog_title": "快捷键列表",
+    "replay_line_action": "重听当前行",
+    "replay_line_tooltip": "重听当前行 (F5)",
+    "control_console": "控制台",
+    "add_row_tooltip": "在下方插入新行",
+    "remove_row_tooltip": "删除选中行",
+    "merge_rows_tooltip": "合并选中行",
+    "split_row_tooltip": "拆分选中行",
+    "error_unknown": "未知错误: {e}\n请检查文件格式或报告此错误。",
+    "error_save_system": "无法保存文件（系统错误）: {e}",
+    "error_save_unknown": "保存文件时发生未知错误: {e}"
 }
