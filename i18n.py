@@ -100,5 +100,9 @@ LANG = {
     "split_row_tooltip": "拆分选中行",
     "error_unknown": "未知错误: {e}\n请检查文件格式或报告此错误。",
     "error_save_system": "无法保存文件（系统错误）: {e}",
-    "error_save_unknown": "保存文件时发生未知错误: {e}"
+    "error_save_unknown": "保存文件时发生未知错误: {e}",
+    "menu_view": "视图(&V)",
+    "view_show_translated": "显示译文列",
+    "view_romaji_tooltips": "罗马音提示",
+    "romaji_tooltip_unavailable": "（罗马音功能不可用）"
 }

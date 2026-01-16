@@ -2,12 +2,25 @@
 import re
 from collections import defaultdict
 
+try:
+    import pykakasi
+    PYKAKASI_AVAILABLE = True
+except ImportError:
+    PYKAKASI_AVAILABLE = False
+
 class Lrc:
     """负责LRC歌词的解析、编辑和生成，支持双语"""
     def __init__(self):
         self.meta = {"ti": "", "ar": "", "al": ""}
         # 数据结构: [{'ts': float, 'original': "...", 'translated': "..."}, ...]
         self.lyrics = []
+        # 罗马音转换器
+        self.kks = None
+        if PYKAKASI_AVAILABLE:
+            try:
+                self.kks = pykakasi.kakasi()
+            except Exception:
+                self.kks = None
 
     def parse_from_text(self, text: str):
         """从字符串解析LRC内容，智能处理单行和分行双语格式"""
@@ -84,6 +97,16 @@ class Lrc:
         # 初次加载后不再自动排序
         # self.sort_lyrics()
 
+
+    def convert_to_romaji(self, text: str) -> str:
+        """将日文文本转换为罗马音"""
+        if not text or not self.kks:
+            return ""
+        try:
+            result = self.kks.convert(text)
+            return " ".join(item["hepburn"] for item in result)
+        except Exception:
+            return ""
 
     @staticmethod
     def format_timestamp(ts: float) -> str:

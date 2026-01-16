@@ -135,6 +135,25 @@ class MainWindow(QMainWindow):
         self.addAction(self.act_merge_rows)
         self.addAction(self.act_split_row)
 
+        # 视图菜单动作
+        self.show_translated_action = QAction(LANG["view_show_translated"], self, checkable=True)
+        self.show_translated_action.setChecked(True)  # 默认显示译文列
+        
+        # 检查pykakasi是否可用
+        try:
+            import pykakasi
+            pykakasi_available = True
+        except ImportError:
+            pykakasi_available = False
+        
+        romaji_text = LANG["view_romaji_tooltips"]
+        if not pykakasi_available:
+            romaji_text += " " + LANG["romaji_tooltip_unavailable"]
+        
+        self.romaji_tooltips_action = QAction(romaji_text, self, checkable=True)
+        self.romaji_tooltips_action.setChecked(pykakasi_available)  # 默认启用罗马音提示（如果可用）
+        self.romaji_tooltips_action.setEnabled(pykakasi_available)
+
     def init_ui(self):
         """初始化整体UI布局"""
         self.setWindowTitle(LANG["app_title"])
@@ -196,6 +215,11 @@ class MainWindow(QMainWindow):
         save_format_menu.addAction(self.save_single_line_action)
         save_format_group.addAction(self.save_separated_action)
         save_format_group.addAction(self.save_single_line_action)
+
+        # 视图菜单
+        view_menu = menu_bar.addMenu(LANG["menu_view"])
+        view_menu.addAction(self.show_translated_action)
+        view_menu.addAction(self.romaji_tooltips_action)
 
         help_menu = menu_bar.addMenu(LANG["menu_help"])
         
@@ -346,6 +370,10 @@ class MainWindow(QMainWindow):
         
         self.mark_time_action.triggered.connect(self.mark_timestamp)
         self.replay_line_action.triggered.connect(self.replay_current_line)
+
+        # 视图菜单连接
+        self.show_translated_action.triggered.connect(self.toggle_translated_column)
+        self.romaji_tooltips_action.triggered.connect(self.toggle_romaji_tooltips)
 
         # 按钮连接
         self.add_row_button.clicked.connect(self.add_row)
@@ -555,6 +583,42 @@ class MainWindow(QMainWindow):
         else:
             self.player.set_pos(max(0, self.player.get_pos() - 2000))
 
+    def toggle_translated_column(self, checked):
+        """切换译文列显示"""
+        if checked:
+            self.lyrics_table.showColumn(2)
+        else:
+            self.lyrics_table.hideColumn(2)
+
+    def toggle_romaji_tooltips(self, checked):
+        """切换罗马音提示"""
+        # 重新应用工具提示
+        self.update_romaji_tooltips()
+
+    def update_romaji_tooltips(self):
+        """更新所有原文单元格的罗马音工具提示"""
+        if not self.romaji_tooltips_action.isChecked():
+            # 清除所有工具提示
+            for row in range(self.lyrics_table.rowCount()):
+                item = self.lyrics_table.item(row, 1)
+                if item:
+                    item.setToolTip("")
+            return
+        
+        # 应用罗马音工具提示
+        for row in range(self.lyrics_table.rowCount()):
+            item = self.lyrics_table.item(row, 1)
+            if item:
+                original = item.text()
+                if original:
+                    romaji = self.lrc.convert_to_romaji(original)
+                    if romaji:
+                        item.setToolTip(romaji)
+                    else:
+                        item.setToolTip("")
+                else:
+                    item.setToolTip("")
+
     def show_about_dialog(self): 
         QMessageBox.about(self, LANG["about_dialog_title"], LANG["about_dialog_text"])
         
@@ -726,8 +790,19 @@ class MainWindow(QMainWindow):
         for i, line in enumerate(self.lrc.lyrics):
             ts_str = self.format_time(line['ts'] * 1000) if line.get('ts') is not None else ""
             self.lyrics_table.setItem(i, 0, QTableWidgetItem(ts_str))
-            self.lyrics_table.setItem(i, 1, QTableWidgetItem(line.get('original', '')))
-            self.lyrics_table.setItem(i, 2, QTableWidgetItem(line.get('translated', '')))
+            original_item = QTableWidgetItem(line.get('original', ''))
+            translated_item = QTableWidgetItem(line.get('translated', ''))
+            
+            # 设置罗马音工具提示
+            if self.romaji_tooltips_action.isChecked():
+                original_text = line.get('original', '')
+                if original_text:
+                    romaji = self.lrc.convert_to_romaji(original_text)
+                    if romaji:
+                        original_item.setToolTip(romaji)
+            
+            self.lyrics_table.setItem(i, 1, original_item)
+            self.lyrics_table.setItem(i, 2, translated_item)
         
         self.lyrics_table.resizeRowsToContents()
         self.lyrics_table.blockSignals(False)
@@ -847,6 +922,16 @@ class MainWindow(QMainWindow):
             ts = m * 60 + s + cs / 100.0
             
         self.lrc.lyrics[row] = {'ts': ts, 'original': original, 'translated': translated}
+        
+        # 更新罗马音工具提示
+        if item.column() == 1 and self.romaji_tooltips_action.isChecked():
+            original_item = self.lyrics_table.item(row, 1)
+            if original and original_item:
+                romaji = self.lrc.convert_to_romaji(original)
+                if romaji:
+                    original_item.setToolTip(romaji)
+                else:
+                    original_item.setToolTip("")
         
         if item.column() == 0: 
             self.update_highlight_styles()
