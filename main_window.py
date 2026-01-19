@@ -21,7 +21,7 @@ import qtawesome as qta
 
 from lrc import Lrc
 from player import Player
-from i18n import LANG
+from i18n import LANG, set_language
 
 def resource_path(relative_path):
     """ 获取资源的绝对路径，适用于开发环境和 PyInstaller 打包环境 """
@@ -82,52 +82,54 @@ class MainWindow(QMainWindow):
         
         self.update_lyrics_table()
         self.update_edit_buttons_state()
+        
+        # Initial Translation
+        self.retranslate_ui()
 
     def init_actions(self):
         """初始化所有QAction"""
         # 文件操作
-        self.open_audio_action = QAction(qta.icon('fa5s.music'), LANG["menu_open_audio"], self)
-        self.open_lyric_action = QAction(qta.icon('fa5s.file-alt'), LANG["menu_open_lyric"], self)
-        self.save_action = QAction(qta.icon('fa5s.save'), LANG["menu_save_lyric"], self)
+        self.open_audio_action = QAction(qta.icon('fa5s.music'), "", self)
+        self.open_lyric_action = QAction(qta.icon('fa5s.file-alt'), "", self)
+        self.save_action = QAction(qta.icon('fa5s.save'), "", self)
         self.save_action.setShortcut(QKeySequence.StandardKey.Save)
-        self.save_as_action = QAction(LANG["menu_save_lyric_as"], self)
-        self.exit_action = QAction(LANG["menu_exit"], self)
+        self.save_as_action = QAction("", self)
+        self.exit_action = QAction("", self)
 
         # 编辑操作 (Undo/Redo)
-        self.undo_action = self.undo_stack.createUndoAction(self, LANG["menu_undo"])
-        self.redo_action = self.undo_stack.createRedoAction(self, LANG["menu_redo"])
+        self.undo_action = self.undo_stack.createUndoAction(self, "")
+        self.redo_action = self.undo_stack.createRedoAction(self, "")
         self.undo_action.setIcon(qta.icon('fa5s.undo'))
         self.redo_action.setIcon(qta.icon('fa5s.redo'))
         self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
 
         # 播放控制
-        self.play_pause_action = QAction(qta.icon('fa5s.play-circle'), LANG['play_button'], self)
-        self.play_pause_action.setToolTip(f"{LANG['play_button']} (Space)")
+        self.play_pause_action = QAction(qta.icon('fa5s.play-circle'), "", self)
+        # Tooltip set in retranslate_ui
         
-        self.stop_action = QAction(qta.icon('fa5s.stop-circle'), LANG['stop_button'], self)
-        self.rewind_action = QAction(qta.icon('fa5s.backward'), LANG['rewind_button'], self)
-        self.forward_action = QAction(qta.icon('fa5s.forward'), LANG['forward_button'], self)
+        self.stop_action = QAction(qta.icon('fa5s.stop-circle'), "", self)
+        self.rewind_action = QAction(qta.icon('fa5s.backward'), "", self)
+        self.forward_action = QAction(qta.icon('fa5s.forward'), "", self)
 
         # 打轴与定位
-        self.mark_time_action = QAction(LANG['mark_time_button'], self)
+        self.mark_time_action = QAction("", self)
         self.mark_time_action.setShortcut(QKeySequence("F8")) # 快捷键 F8
         self.addAction(self.mark_time_action) # 添加到主窗口以便全局响应
         
-        self.replay_line_action = QAction(LANG["replay_line_action"], self)
+        self.replay_line_action = QAction("", self)
         self.replay_line_action.setIcon(qta.icon('fa5s.sync-alt'))
         self.replay_line_action.setShortcut(QKeySequence("F5"))
-        self.replay_line_action.setToolTip(LANG["replay_line_tooltip"])
         self.addAction(self.replay_line_action)
 
         # 编辑快捷键 Action (用于绑定快捷键，不一定显示在菜单)
-        self.act_add_row = QAction(LANG["add_row_button"], self)
+        self.act_add_row = QAction("", self)
         self.act_add_row.setShortcut(QKeySequence("Ctrl+Return")) # Ctrl+回车 插入行
-        self.act_remove_row = QAction(LANG["remove_row_button"], self)
+        self.act_remove_row = QAction("", self)
         self.act_remove_row.setShortcut(QKeySequence("Ctrl+Delete")) # Ctrl+Delete 删除行
-        self.act_merge_rows = QAction(LANG["merge_rows_button"], self)
+        self.act_merge_rows = QAction("", self)
         self.act_merge_rows.setShortcut(QKeySequence("Ctrl+J")) # Ctrl+J 合并
-        self.act_split_row = QAction(LANG["split_row_button"], self)
+        self.act_split_row = QAction("", self)
         self.act_split_row.setShortcut(QKeySequence("Ctrl+K")) # Ctrl+K 拆分
 
         self.addAction(self.act_add_row)
@@ -136,23 +138,26 @@ class MainWindow(QMainWindow):
         self.addAction(self.act_split_row)
 
         # 视图菜单动作
-        self.show_translated_action = QAction(LANG["view_show_translated"], self, checkable=True)
+        self.show_translated_action = QAction("", self, checkable=True)
         self.show_translated_action.setChecked(True)  # 默认显示译文列
         
         # 检查pykakasi是否可用
         try:
             import pykakasi
-            pykakasi_available = True
+            self.pykakasi_available = True
         except ImportError:
-            pykakasi_available = False
+            self.pykakasi_available = False
         
-        romaji_text = LANG["view_romaji_tooltips"]
-        if not pykakasi_available:
-            romaji_text += " " + LANG["romaji_tooltip_unavailable"]
+        self.romaji_tooltips_action = QAction("", self, checkable=True)
+        self.romaji_tooltips_action.setChecked(self.pykakasi_available)  # 默认启用罗马音提示（如果可用）
+        self.romaji_tooltips_action.setEnabled(self.pykakasi_available)
         
-        self.romaji_tooltips_action = QAction(romaji_text, self, checkable=True)
-        self.romaji_tooltips_action.setChecked(pykakasi_available)  # 默认启用罗马音提示（如果可用）
-        self.romaji_tooltips_action.setEnabled(pykakasi_available)
+        # 帮助菜单动作
+        self.shortcuts_action = QAction("", self)
+        self.shortcuts_action.triggered.connect(self.show_shortcuts_dialog)
+        
+        self.about_action = QAction("", self)
+        self.about_action.triggered.connect(self.show_about_dialog)
 
     def init_ui(self):
         """初始化整体UI布局"""
@@ -181,83 +186,96 @@ class MainWindow(QMainWindow):
         """创建菜单栏"""
         menu_bar = self.menuBar()
         
-        file_menu = menu_bar.addMenu(LANG["menu_file"])
-        file_menu.addAction(self.open_audio_action)
-        file_menu.addAction(self.open_lyric_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self.save_action)
-        file_menu.addAction(self.save_as_action)
-        file_menu.addSeparator()
-        file_menu.addAction(self.exit_action)
+        self.file_menu = menu_bar.addMenu("")
+        self.file_menu.addAction(self.open_audio_action)
+        self.file_menu.addAction(self.open_lyric_action)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.save_action)
+        self.file_menu.addAction(self.save_as_action)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.exit_action)
 
-        edit_menu = menu_bar.addMenu(LANG["menu_edit"])
-        edit_menu.addAction(self.undo_action)
-        edit_menu.addAction(self.redo_action)
-        edit_menu.addSeparator()
-        edit_menu.addAction(self.act_add_row)
-        edit_menu.addAction(self.act_remove_row)
-        edit_menu.addAction(self.act_merge_rows)
-        edit_menu.addAction(self.act_split_row)
+        self.edit_menu = menu_bar.addMenu("")
+        self.edit_menu.addAction(self.undo_action)
+        self.edit_menu.addAction(self.redo_action)
+        self.edit_menu.addSeparator()
+        self.edit_menu.addAction(self.act_add_row)
+        self.edit_menu.addAction(self.act_remove_row)
+        self.edit_menu.addAction(self.act_merge_rows)
+        self.edit_menu.addAction(self.act_split_row)
 
-        settings_menu = menu_bar.addMenu(LANG["menu_settings"])
+        self.settings_menu = menu_bar.addMenu("")
         save_format_group = QActionGroup(self)
         save_format_group.setExclusive(True)
-        self.save_separated_action = QAction(LANG["setting_save_separated"], self, checkable=True)
-        self.save_single_line_action = QAction(LANG["setting_save_single_line"], self, checkable=True)
+        self.save_separated_action = QAction("", self, checkable=True)
+        self.save_single_line_action = QAction("", self, checkable=True)
         
         if self.save_as_separated_default:
             self.save_separated_action.setChecked(True)
         else:
             self.save_single_line_action.setChecked(True)
             
-        save_format_menu = settings_menu.addMenu(LANG["setting_default_save_format"])
-        save_format_menu.addAction(self.save_separated_action)
-        save_format_menu.addAction(self.save_single_line_action)
+        self.save_format_menu = self.settings_menu.addMenu("")
+        self.save_format_menu.addAction(self.save_separated_action)
+        self.save_format_menu.addAction(self.save_single_line_action)
         save_format_group.addAction(self.save_separated_action)
         save_format_group.addAction(self.save_single_line_action)
 
-        # 视图菜单
-        view_menu = menu_bar.addMenu(LANG["menu_view"])
-        view_menu.addAction(self.show_translated_action)
-        view_menu.addAction(self.romaji_tooltips_action)
+        # 语言菜单
+        self.lang_menu = self.settings_menu.addMenu("Language")
+        self.lang_cn_action = QAction("中文 (Chinese)", self, checkable=True)
+        self.lang_en_action = QAction("English", self, checkable=True)
+        
+        lang_group = QActionGroup(self)
+        lang_group.addAction(self.lang_cn_action)
+        lang_group.addAction(self.lang_en_action)
+        lang_group.setExclusive(True)
+        
+        # 默认选中中文
+        self.lang_cn_action.setChecked(True)
+        
+        self.lang_cn_action.triggered.connect(lambda: self.switch_language("zh_CN"))
+        self.lang_en_action.triggered.connect(lambda: self.switch_language("en_US"))
+        
+        self.lang_menu.addAction(self.lang_cn_action)
+        self.lang_menu.addAction(self.lang_en_action)
 
-        help_menu = menu_bar.addMenu(LANG["menu_help"])
-        
-        shortcuts_action = QAction(LANG["shortcuts_action"], self)
-        shortcuts_action.triggered.connect(self.show_shortcuts_dialog)
-        help_menu.addAction(shortcuts_action)
-        
-        about_action = QAction(LANG["menu_about"], self)
-        about_action.triggered.connect(self.show_about_dialog)
-        help_menu.addAction(about_action)
+        # 视图菜单
+        self.view_menu = menu_bar.addMenu("")
+        self.view_menu.addAction(self.show_translated_action)
+        self.view_menu.addAction(self.romaji_tooltips_action)
+
+        self.help_menu = menu_bar.addMenu("")
+        self.help_menu.addAction(self.shortcuts_action)
+        self.help_menu.addAction(self.about_action)
 
     def create_toolbars(self):
         """创建工具栏"""
-        file_toolbar = QToolBar(LANG["toolbar_file"])
-        self.addToolBar(file_toolbar)
-        file_toolbar.addAction(self.open_audio_action)
-        file_toolbar.addAction(self.open_lyric_action)
-        file_toolbar.addAction(self.save_action)
+        self.file_toolbar = QToolBar("")
+        self.addToolBar(self.file_toolbar)
+        self.file_toolbar.addAction(self.open_audio_action)
+        self.file_toolbar.addAction(self.open_lyric_action)
+        self.file_toolbar.addAction(self.save_action)
 
-        edit_toolbar = QToolBar(LANG["toolbar_edit"])
-        self.addToolBar(edit_toolbar)
-        edit_toolbar.addAction(self.undo_action)
-        edit_toolbar.addAction(self.redo_action)
+        self.edit_toolbar = QToolBar("")
+        self.addToolBar(self.edit_toolbar)
+        self.edit_toolbar.addAction(self.undo_action)
+        self.edit_toolbar.addAction(self.redo_action)
 
-        playback_toolbar = QToolBar(LANG["toolbar_playback"])
-        self.addToolBar(playback_toolbar)
-        playback_toolbar.addAction(self.play_pause_action)
-        playback_toolbar.addAction(self.stop_action)
-        playback_toolbar.addAction(self.rewind_action)
-        playback_toolbar.addAction(self.forward_action)
-        playback_toolbar.addAction(self.replay_line_action) # 添加重听按钮到工具栏
+        self.playback_toolbar = QToolBar("")
+        self.addToolBar(self.playback_toolbar)
+        self.playback_toolbar.addAction(self.play_pause_action)
+        self.playback_toolbar.addAction(self.stop_action)
+        self.playback_toolbar.addAction(self.rewind_action)
+        self.playback_toolbar.addAction(self.forward_action)
+        self.playback_toolbar.addAction(self.replay_line_action) # 添加重听按钮到工具栏
         
         self.timeline_slider = QSlider(Qt.Orientation.Horizontal)
-        playback_toolbar.addWidget(self.timeline_slider)
+        self.playback_toolbar.addWidget(self.timeline_slider)
         
         self.time_label = QLabel("00:00.00 / 00:00.00")
         self.time_label.setMinimumWidth(self.fontMetrics().horizontalAdvance("00:00.00 / 00:00.00") + 10)
-        playback_toolbar.addWidget(self.time_label)
+        self.playback_toolbar.addWidget(self.time_label)
 
     def create_left_panel(self):
         """创建左侧控制面板"""
@@ -270,11 +288,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.create_meta_group())
         
         # 2. 控制台 (合并播放和打轴)
-        control_group = QGroupBox(LANG["control_console"])
-        control_layout = QVBoxLayout(control_group)
+        self.console_group = QGroupBox("")
+        control_layout = QVBoxLayout(self.console_group)
         control_layout.addWidget(self.create_secondary_player_controls())
         control_layout.addWidget(self.create_timeline_controls())
-        layout.addWidget(control_group)
+        layout.addWidget(self.console_group)
 
         # 3. 编辑操作
         layout.addWidget(self.create_edit_controls())
@@ -284,26 +302,31 @@ class MainWindow(QMainWindow):
 
     def create_right_panel(self):
         """创建右侧歌词编辑器面板"""
-        lyrics_group = QGroupBox(LANG["tab_editor"])
+        self.editor_group = QGroupBox("")
         lyrics_layout = QVBoxLayout()
         lyrics_layout.setContentsMargins(5, 10, 5, 5)
         
         self.lyrics_table = QTableWidget()
         self.setup_lyrics_table()
         lyrics_layout.addWidget(self.lyrics_table)
-        lyrics_group.setLayout(lyrics_layout)
-        return lyrics_group
+        self.editor_group.setLayout(lyrics_layout)
+        return self.editor_group
 
     def create_meta_group(self):
-        group = QGroupBox(LANG["meta_info_group"])
-        layout = QFormLayout(group)
+        self.meta_group = QGroupBox("")
+        layout = QFormLayout(self.meta_group)
         self.title_edit = QLineEdit()
         self.artist_edit = QLineEdit()
         self.album_edit = QLineEdit()
-        layout.addRow(LANG["title"], self.title_edit)
-        layout.addRow(LANG["artist"], self.artist_edit)
-        layout.addRow(LANG["album"], self.album_edit)
-        return group
+        
+        self.lbl_title = QLabel("")
+        self.lbl_artist = QLabel("")
+        self.lbl_album = QLabel("")
+        
+        layout.addRow(self.lbl_title, self.title_edit)
+        layout.addRow(self.lbl_artist, self.artist_edit)
+        layout.addRow(self.lbl_album, self.album_edit)
+        return self.meta_group
         
     def create_secondary_player_controls(self):
         """播放设置 (返回QWidget，减少边框嵌套)"""
@@ -314,12 +337,16 @@ class MainWindow(QMainWindow):
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(80)
-        layout.addRow(LANG["volume_label"], self.volume_slider)
+        
+        self.lbl_volume = QLabel("")
+        layout.addRow(self.lbl_volume, self.volume_slider)
 
         self.speed_combo = QComboBox()
         self.speed_combo.addItems(["0.5x", "0.75x", "1.0x", "1.5x", "2.0x"])
         self.speed_combo.setCurrentText("1.0x")
-        layout.addRow(LANG["speed_label"], self.speed_combo)
+        
+        self.lbl_speed = QLabel("")
+        layout.addRow(self.lbl_speed, self.speed_combo)
         return container
 
     def create_timeline_controls(self):
@@ -328,32 +355,126 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 5, 0, 0)
         
-        self.mark_time_button = QPushButton(f"{LANG['mark_time_button']} (F8)")
+        self.mark_time_button = QPushButton("")
         self.mark_time_button.setIcon(qta.icon('fa5s.map-marker-alt'))
         self.mark_time_button.setMinimumHeight(35)
-        self.mark_time_button.setToolTip("快捷键: F8")
         layout.addWidget(self.mark_time_button)
         return container
 
     def create_edit_controls(self):
         """编辑操作分组"""
-        group = QGroupBox(LANG["edit_controls_group"])
-        layout = QVBoxLayout(group)
+        self.edit_group = QGroupBox("")
+        layout = QVBoxLayout(self.edit_group)
         
         # 在按钮文字中直接添加快捷键提示
-        self.add_row_button = QPushButton(f"{LANG['add_row_button']} (Ctrl+Enter)")
-        self.remove_row_button = QPushButton(f"{LANG['remove_row_button']} (Ctrl+Del)")
-        self.merge_rows_button = QPushButton(f"{LANG['merge_rows_button']} (Ctrl+J)")
-        self.split_row_button = QPushButton(f"{LANG['split_row_button']} (Ctrl+K)")
-        
-        self.add_row_button.setToolTip(LANG["add_row_tooltip"])
-        self.remove_row_button.setToolTip(LANG["remove_row_tooltip"])
+        self.add_row_button = QPushButton("")
+        self.remove_row_button = QPushButton("")
+        self.merge_rows_button = QPushButton("")
+        self.split_row_button = QPushButton("")
         
         layout.addWidget(self.add_row_button)
         layout.addWidget(self.remove_row_button)
         layout.addWidget(self.merge_rows_button)
         layout.addWidget(self.split_row_button)
-        return group
+        return self.edit_group
+
+    def retranslate_ui(self):
+        """Dynamically update all UI texts based on current language"""
+        self.setWindowTitle(LANG["app_title"])
+        
+        # Actions
+        self.open_audio_action.setText(LANG["menu_open_audio"])
+        self.open_lyric_action.setText(LANG["menu_open_lyric"])
+        self.save_action.setText(LANG["menu_save_lyric"])
+        self.save_as_action.setText(LANG["menu_save_lyric_as"])
+        self.exit_action.setText(LANG["menu_exit"])
+        self.undo_action.setText(LANG["menu_undo"])
+        self.redo_action.setText(LANG["menu_redo"])
+        
+        self.play_pause_action.setText(LANG['pause_button'] if self.player.is_playing() else LANG['play_button'])
+        self.play_pause_action.setToolTip(f"{LANG['play_button']} (Space)")
+        self.stop_action.setText(LANG['stop_button'])
+        self.rewind_action.setText(LANG['rewind_button'])
+        self.forward_action.setText(LANG['forward_button'])
+        
+        self.mark_time_action.setText(LANG['mark_time_button'])
+        self.replay_line_action.setText(LANG["replay_line_action"])
+        self.replay_line_action.setToolTip(LANG["replay_line_tooltip"])
+        
+        self.act_add_row.setText(LANG["add_row_button"])
+        self.act_remove_row.setText(LANG["remove_row_button"])
+        self.act_merge_rows.setText(LANG["merge_rows_button"])
+        self.act_split_row.setText(LANG["split_row_button"])
+        
+        self.show_translated_action.setText(LANG["view_show_translated"])
+        
+        romaji_text = LANG["view_romaji_tooltips"]
+        if not self.pykakasi_available:
+            romaji_text += " " + LANG["romaji_tooltip_unavailable"]
+        self.romaji_tooltips_action.setText(romaji_text)
+        
+        self.shortcuts_action.setText(LANG["shortcuts_action"])
+        self.about_action.setText(LANG["menu_about"])
+        self.save_separated_action.setText(LANG["setting_save_separated"])
+        self.save_single_line_action.setText(LANG["setting_save_single_line"])
+        self.lang_menu.setTitle(LANG["setting_language"])
+
+        # Menus
+        self.file_menu.setTitle(LANG["menu_file"])
+        self.edit_menu.setTitle(LANG["menu_edit"])
+        self.settings_menu.setTitle(LANG["menu_settings"])
+        self.save_format_menu.setTitle(LANG["setting_default_save_format"])
+        self.view_menu.setTitle(LANG["menu_view"])
+        self.help_menu.setTitle(LANG["menu_help"])
+        
+        # Toolbars
+        self.file_toolbar.setWindowTitle(LANG["toolbar_file"])
+        self.edit_toolbar.setWindowTitle(LANG["toolbar_edit"])
+        self.playback_toolbar.setWindowTitle(LANG["toolbar_playback"])
+        
+        # Groups and Labels
+        self.meta_group.setTitle(LANG["meta_info_group"])
+        self.lbl_title.setText(LANG["title"])
+        self.lbl_artist.setText(LANG["artist"])
+        self.lbl_album.setText(LANG["album"])
+        
+        self.console_group.setTitle(LANG["control_console"])
+        self.lbl_volume.setText(LANG["volume_label"])
+        self.lbl_speed.setText(LANG["speed_label"])
+        
+        self.edit_group.setTitle(LANG["edit_controls_group"])
+        self.editor_group.setTitle(LANG["tab_editor"])
+        
+        # Buttons
+        self.mark_time_button.setText(f"{LANG['mark_time_button']} (F8)")
+        self.mark_time_button.setToolTip("F8")
+        
+        self.add_row_button.setText(f"{LANG['add_row_button']} (Ctrl+Enter)")
+        self.add_row_button.setToolTip(LANG["add_row_tooltip"])
+        self.remove_row_button.setText(f"{LANG['remove_row_button']} (Ctrl+Del)")
+        self.remove_row_button.setToolTip(LANG["remove_row_tooltip"])
+        self.merge_rows_button.setText(f"{LANG['merge_rows_button']} (Ctrl+J)")
+        self.merge_rows_button.setToolTip(LANG["merge_rows_tooltip"])
+        self.split_row_button.setText(f"{LANG['split_row_button']} (Ctrl+K)")
+        self.split_row_button.setToolTip(LANG["split_row_tooltip"])
+        
+        # Table Header
+        self.lyrics_table.setHorizontalHeaderLabels([
+            LANG["lyrics_table_header_time"], 
+            LANG["lyrics_table_header_original"], 
+            LANG["lyrics_table_header_translated"]
+        ])
+        
+        # Update Status Bar if it's showing 'Ready'
+        current_msg = self.status_bar.currentMessage()
+        # Simple heuristic: if message matches previous lang 'Ready', update it
+        # But for now, just ignore dynamic status messages, or reset to ready if empty
+        if not current_msg:
+             self.status_bar.showMessage(LANG["status_ready"])
+
+    def switch_language(self, lang_code):
+        set_language(lang_code)
+        self.retranslate_ui()
 
     def connect_signals(self):
         """连接所有信号和槽"""
@@ -396,9 +517,9 @@ class MainWindow(QMainWindow):
         self.lyrics_table.itemChanged.connect(self.sync_table_to_lrc)
         self.lyrics_table.itemSelectionChanged.connect(self.on_user_selection_changed)
 
-        self.title_edit.editingFinished.connect(lambda: self.create_command("编辑标题"))
-        self.artist_edit.editingFinished.connect(lambda: self.create_command("编辑歌手"))
-        self.album_edit.editingFinished.connect(lambda: self.create_command("编辑专辑"))
+        self.title_edit.editingFinished.connect(lambda: self.create_command(LANG["undo_edit_title"]))
+        self.artist_edit.editingFinished.connect(lambda: self.create_command(LANG["undo_edit_artist"]))
+        self.album_edit.editingFinished.connect(lambda: self.create_command(LANG["undo_edit_album"]))
         self.title_edit.textChanged.connect(lambda t: self.lrc.meta.update({'ti': t}))
         self.artist_edit.textChanged.connect(lambda t: self.lrc.meta.update({'ar': t}))
         self.album_edit.textChanged.connect(lambda t: self.lrc.meta.update({'al': t}))
@@ -482,7 +603,7 @@ class MainWindow(QMainWindow):
         selected_rows = self.get_selected_rows()
         insert_pos = selected_rows[-1] + 1 if selected_rows else self.lyrics_table.rowCount()
         
-        self.create_command("添加行")
+        self.create_command(LANG["undo_add_row"])
         self.lrc.lyrics.insert(insert_pos, {'ts': None, 'original': '', 'translated': ''})
         
         self.update_lyrics_table()
@@ -498,7 +619,7 @@ class MainWindow(QMainWindow):
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.No: return
         
-        self.create_command("删除行")
+        self.create_command(LANG["undo_remove_row"])
         for row in sorted(rows, reverse=True):
             del self.lrc.lyrics[row]
 
@@ -509,7 +630,7 @@ class MainWindow(QMainWindow):
         rows = self.get_selected_rows()
         if len(rows) < 2: return
 
-        self.create_command("合并行")
+        self.create_command(LANG["undo_merge_rows"])
         base_row_idx = rows[0]
         base_lyric = self.lrc.lyrics[base_row_idx]
         
@@ -533,7 +654,7 @@ class MainWindow(QMainWindow):
         parts = original_text.split()
         if len(parts) < 2: return
 
-        self.create_command("拆分行")
+        self.create_command(LANG["undo_split_row"])
         self.lrc.lyrics[row]['original'] = parts[0]
         for i, part in enumerate(parts[1:]):
             self.lrc.lyrics.insert(row + i + 1, {'ts': None, 'original': part, 'translated': ''})
@@ -550,7 +671,7 @@ class MainWindow(QMainWindow):
             else:
                 return
         
-        self.create_command("标记时间戳")
+        self.create_command(LANG["undo_mark_timestamp"])
         current_pos_ms = self.player.get_pos()
         current_ts = current_pos_ms / 1000.0
         
@@ -624,23 +745,7 @@ class MainWindow(QMainWindow):
         
     def show_shortcuts_dialog(self):
         """显示快捷键列表"""
-        text = """
-        <b>播放控制:</b><br>
-        Space: 播放/暂停<br>
-        F5: 重听当前行<br><br>
-        
-        <b>打轴操作:</b><br>
-        F8: 标记时间戳并跳转下一行<br><br>
-        
-        <b>编辑操作:</b><br>
-        Ctrl+Enter: 插入新行<br>
-        Ctrl+Del: 删除选中行<br>
-        Ctrl+J: 合并选中行<br>
-        Ctrl+K: 拆分选中行<br>
-        Ctrl+S: 保存文件<br>
-        Ctrl+Z: 撤销<br>
-        Ctrl+Y: 重做
-        """
+        text = LANG.get("shortcuts_dialog_content", "Error: Missing shortcut content")
         QMessageBox.information(self, LANG["shortcuts_dialog_title"], text)
 
     def update_save_format_setting(self, is_separated): 
@@ -909,7 +1014,7 @@ class MainWindow(QMainWindow):
         row = item.row()
         if not (0 <= row < len(self.lrc.lyrics)): return
 
-        self.create_command("编辑歌词")
+        self.create_command(LANG["undo_edit_lyric"])
         
         ts_str = self.lyrics_table.item(row, 0).text()
         original = self.lyrics_table.item(row, 1).text()
@@ -927,7 +1032,7 @@ class MainWindow(QMainWindow):
         if item.column() == 1 and self.romaji_tooltips_action.isChecked():
             original_item = self.lyrics_table.item(row, 1)
             if original and original_item:
-                romaji = self.lrc.convert_to_romaji(original)
+                romaji = self.lrc.convert_to_romaji(original_text)
                 if romaji:
                     original_item.setToolTip(romaji)
                 else:
