@@ -1,5 +1,6 @@
 # lrc.py
 import re
+import copy
 from collections import defaultdict
 
 try:
@@ -21,6 +22,23 @@ class Lrc:
                 self.kks = pykakasi.kakasi()
             except Exception:
                 self.kks = None
+
+    def __deepcopy__(self, memo):
+        """自定义深拷贝行为，防止复制 pykakasi 对象导致报错"""
+        # 创建一个新实例（绕过 __init__ 以避免重复初始化 pykakasi，提高性能）
+        cls = self.__class__
+        new_obj = cls.__new__(cls)
+        memo[id(self)] = new_obj
+        
+        # 深度复制数据属性
+        new_obj.meta = copy.deepcopy(self.meta, memo)
+        new_obj.lyrics = copy.deepcopy(self.lyrics, memo)
+        
+        # 对于 kks 工具对象，直接共享引用（浅拷贝），不要深拷贝
+        # 这样既避免了 '_thread.lock' 错误，又避免了重复加载字典
+        new_obj.kks = self.kks 
+        
+        return new_obj
 
     def parse_from_text(self, text: str):
         """从字符串解析LRC内容，智能处理单行和分行双语格式"""
